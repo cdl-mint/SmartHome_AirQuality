@@ -10,10 +10,10 @@ The API is started by opening a shell of your choice, navigating into the ```sma
 
 ## Description of individual Docker containers
 The services included in this docker container system are the following. The stated ports are preconfigured and can be changed in the docker configurations.
-- fastAPI on default port 8001
+- fastAPI on default port 8002
 - timescaledb on default port 5432
 - Grafana on default port 3001
-- pgAdmin on default port 5051
+- pgAdmin on default port 5055
 - subscriber with no exposed port
 
 A detailed description and relevant files can be found in the ```Installation and Deployment``` section.
