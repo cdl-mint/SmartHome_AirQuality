@@ -16,8 +16,7 @@ from sqlalchemy import and_, text
 from publisher import publish_message
 
 
-app = FastAPI(title=settings.PROJECT_NAME,
-rootpath="/smartRoom_AirQuality")
+app = FastAPI(title=settings.PROJECT_NAME,version=settings.PROJECT_VERSION)
 
 app.add_middleware(
     CORSMiddleware,

@@ -44,17 +44,17 @@ If the build is successful, you can see the services running on the ports as sho
 
 Navigate to the browser url "http://localhost:5055", the pgAdmin interface will be visible and you can login into the pgAdmin with the following email id (pgadmin4@pgadmin.org) and password(admin).
 
-![pgAdmin_Login](./images/pgAdmin_Login.png)
+![pgadmin_login](./images/pgadmin_login.png)
 
 After successful login, add the new server by clicking on the add new server button.
 
-![fastAPI_AddServer](./images/pgAdmin_AddNewServer.png)
+Add a default host name and the database credentials based on the docker-compose.yaml configuration for the timeScaleDatabaseSRAQ container.
 
-Add a default host name and the database credentials based on the docker-compose.yaml configuration for the timeScaleDatabase container.
+![Db_Credentials](./images/pg_ds.png)
 
-![Db_Credentials](./images/serverCredentials.png)
+Now the tables will be created automatically based on the [database schema](https://github.com/cdl-mint/SmartHomeOperations_AirQuality/SmartHome_AirQuality/Database_Schema.sql) file as shown in figure. Navigate to the **cdl-mint** database and click on **Schemas-->public-->Tables** to view all the created tables.
 
-Now the tables will be created automatically based on the [database schema](https://github.com/cdl-mint/SmartHomeOperations_AirQuality/SmartHome_AirQuality/Database_Schema.sql) file.
+![view_tables](./images/view_tables.png)
 
 ##### fast API:
 
@@ -64,9 +64,9 @@ Navigate to the browser and check if the API is up and running from the port (80
 
 The screenshots of the API are as follows :
 
-fast API for the smart room use case:
+fast API for the smart room_air quality use case:
 
-![fastAPI_SR](./images/fastAPI_SR.png)
+![fastAPI_SR](./images/api.png)
 
 #### Sample POST Requests:
 
@@ -76,21 +76,23 @@ The air quality properties are analysed with respect to room, so the room need t
 
 The room is created with the sample entry as shown in figure.
 
-![post_room](./images/room_Creation.png)
+![post_room](./images/add_room.png)
 
 After entering the sample data, press the execute button, after the POST request is successful, you can see the success response with status 201, row is created in the room table in the timescale database.
 
-![post_room](./images/Room_Creation_Success.png)
-
 Verify if the data entry is present in the room table as shown in figure.
 
-![post_room](./images/VerifyData_Room_Table.png)
+![post_room](./images/view_room.png)
 
 ##### Air quality properties:
 
 The sample air quality measurements for the room is shown in figure.
 
-![post_aquc](./images/airQualityProperties.png)
+![post_aquc](./images/add_aq.png)
+
+Verify if the data entry is present in the airqualityproperties table as shown in figure.
+
+![post_aquc](./images/view_aq.png)
 
 ##### Grafana:
 
@@ -98,32 +100,30 @@ The sample air quality measurements for the room is shown in figure.
 
 Navigate to the browser url "http://localhost:3001", the grafana interface will be visible and you can login with the default username and password as admin. Then change the passwod accordingly.
 
-![Grafana_Credentials1](./images/Grafana_Login.png)
-
-![Grafana_Credentials2](./images/Grafana_NewPswd.png)
+![Grafana_Credentials1](./images/grafanalogin.png)
 
 **Grafana- Data Sources:**
 
-Integrate the postgresql database as the datasource for visualisation in grafana. You can create the new dashboard panel and also the add the data source for the panel as shown below.
-
-![Grafana_NewPanelOptions](./images/Grafana_NewPanleOptions.png)
+Integrate the postgresql database as the datasource for visualisation in grafana. You can create the new dashboard panel and also the add the data source for the panel.
 
 Click on the configuration button and then the add data source button as shown in figure.
 
-![Grafana_DataSource](./images/Grafana_AddDataSource.png)
+![Grafana_DataSource](./images/grafana_datasource.png)
 
 Search for the postgresql data source and select from the filtered options, there are also other data sources that can be used.
 
-![Grafana_postgresqlds](./images/Grafana_AddDataSources.png)
+Add the data source credentials (database, username, and password) based on the docker-compose.yaml configuration, make sure that the host name matches the docker container name of the timescale data source. The host name is essential for the grafana to identify the data source in the server. Disbale the verification certification (TLS/SSL Mode). 
 
-Add the data source credentials (database, username, and password) based on the docker-compose.yaml configuration, make sure that the host name matches the docker container name of the timescale data source. The host name is essential for the grafana to identify the data source in the server. Disbale the verification certification (TLS/SSL Mode). Test if the the database connection is successful as shown in figure.
+![Grafana_add_DataSource](./images/grafana_add_ds.png)
 
-![Grafana_datasource](./images/Grafana_DataSources.png)
+Test if the the database connection is successful as shown in figure.
 
-Add new panel from the menu and edit the properties for the panel.
+![Grafana_vfy_datasource](./images/grafana_vds.png)
 
-![Grafana_panel](./images/Grafana_AddNewPanel.png)
+Add new panel from the menu and edit the properties for the panel. Set the title from panel options and edit panel settings. Add the query with table name and select column values co2,humidity, and temperature. The time column should contain the timeseries column of the database(i.e., time column). 
 
-The air quality measurements and the energy consumption data can be visualised as shown in figure.
+*The datetime column name should always be "time" in the database for visualizing the timeseries data in grafana.
 
-![Grafana_datasource](./images/AQUC_EC_Grafana.png)
+The air quality measurements data can be visualised as shown in figure.
+
+![Grafana_aqp](./images/view_aqp_grafana.png)

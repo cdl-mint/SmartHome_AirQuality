@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 import psycopg2
 
 class Settings:
-    PROJECT_NAME:str = "CDL-MINT Project-Perform CRUD operations on smart devices based on indoor air quality with the APIs",
+    PROJECT_NAME:str = "CDL-MINT Project-Perform CRUD operations on smart devices based on indoor air quality with the APIs"
     PROJECT_VERSION: str = "1.0.0"
     POSTGRES_USER : str = "postgres"
     POSTGRES_PASSWORD = "cdlmint"
