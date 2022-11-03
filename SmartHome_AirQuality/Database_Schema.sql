@@ -7,7 +7,7 @@ CREATE TABLE Room(
 CREATE TABLE PeopleInRoom(
 	room_Id varchar NOT NULL,
     people_count int NOT NULL,
-	PRIMARY_KEY (room_Id, people_count),
+	PRIMARY KEY (room_Id, people_count),
 	FOREIGN KEY (room_Id) REFERENCES Room (room_Id)
 );
 
