@@ -23,9 +23,9 @@ tags_metadata = [
     {
         "name": "Lights",
         "description": "Add lights in room, operate them (turn on/off) and change colors (use only hex color code)",
-         "externalDocs": {
+        "externalDocs": {
             "description": "sample hex color code",
-            "url": "https://marketing.istockphoto.com/blog/hex-colors-guide/#:~:text=A%20hex%20color%20code%20is,value%20from%200%20to%20255.&text=The%20code%20is%20written%20using,is%20E06910%20in%20hexadecimal%20code.",
+            "url": "https://htmlcolorcodes.com/",
         },
     },
     {
@@ -48,7 +48,7 @@ tags_metadata = [
     },
 ]
 
-app = FastAPI(title=settings.PROJECT_NAME,version=settings.PROJECT_VERSION)
+app = FastAPI(title=settings.PROJECT_NAME,version=settings.PROJECT_VERSION, openapi_tags=tags_metadata)
 
 
 app.add_middleware(
@@ -83,13 +83,13 @@ async def add_Room(addRoom: Room_Object):
     return addRoom
 
 """Returns all the rooms present in the database"""
-@app.get("/Rooms", response_model=List[Room_Object], status_code=status.HTTP_200_OK)
+@app.get("/Rooms", tags=["Rooms"],response_model=List[Room_Object], status_code=status.HTTP_200_OK)
 async def get_AllRoom_Details():
     results = db_Session.query(Room).all()
     return results
 
 """ Add number of people in room """
-@app.post("/Rooms/{room_id}/PeopleInRoom", response_model=People_In_RoomObject, status_code=status.HTTP_201_CREATED)
+@app.post("/Rooms/{room_id}/PeopleInRoom",tags=["Rooms"], response_model=People_In_RoomObject, status_code=status.HTTP_201_CREATED)
 async def add_People_Room(room_id: str,addPeopleRoom: People_In_RoomObject):
     db_classes = PeopleInRoom(room_id=room_id,people_count=addPeopleRoom.people_count)
     try:
@@ -103,7 +103,7 @@ async def add_People_Room(room_id: str,addPeopleRoom: People_In_RoomObject):
     return addPeopleRoom
 
 """Returns people count in room"""
-@app.get("/Rooms/{room_id}/PeopleInRoom", response_model=People_In_RoomObject, status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/PeopleInRoom",tags=["Rooms"], response_model=People_In_RoomObject, status_code=status.HTTP_200_OK)
 async def get_PeopleCount_Details(room_id: str):
     peoplecount = db_Session.query(PeopleInRoom).filter(PeopleInRoom.room_id==room_id)
     if not peoplecount.first():
@@ -112,7 +112,7 @@ async def get_PeopleCount_Details(room_id: str):
     return peoplecount
 
 """Returns a room with a certain room_id or an error if the room does not exist"""
-@app.get("/Rooms/{room_id}", response_model= Room_Object, status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}",tags=["Rooms"], response_model= Room_Object, status_code=status.HTTP_200_OK)
 async def get_Specific_Room(room_id: str):
     specificRoomDetail = db_Session.query(
         Room).filter(Room.room_id == room_id)
@@ -129,7 +129,7 @@ async def get_Specific_Room(room_id: str):
     "room_size": 55,
     "room_name": "Living room changed"
     }"""
-@app.put("/Rooms/{room_id}", status_code=status.HTTP_200_OK)
+@app.put("/Rooms/{room_id}",tags=["Rooms"], status_code=status.HTTP_200_OK)
 async def update_RoomDetails(room_id: str, request: Update_RoomObject):
     updateRoomDetail = db_Session.query(Room).filter(Room.room_id == room_id)
     if not updateRoomDetail.first():
@@ -141,7 +141,7 @@ async def update_RoomDetails(room_id: str, request: Update_RoomObject):
     return {"code": "success", "message": "updated room"}
 
 """Deletes a room with a certain room_id or returns an error if the room does not exist"""
-@app.delete("/Rooms/{room_id}", status_code=status.HTTP_200_OK)
+@app.delete("/Rooms/{room_id}",tags=["Rooms"], status_code=status.HTTP_200_OK)
 async def delete_Room(room_id: str):
     deleteRoom = db_Session.query(Room).filter(Room.room_id == room_id).one()
     if not deleteRoom:
@@ -155,7 +155,6 @@ async def delete_Room(room_id: str):
     db_Session.commit()
     return {"code": "success", "message": f"deleted room with id {room_id}"}
 
- 
 # Lights
 """Creates a new light in a room in the database and returns the light on success. Light_id needs to be unique in the room (Light_id is unique per definition due to zigbee)"""
 """Example light object 
@@ -181,7 +180,7 @@ async def add_light(room_id: str, addLight: Lights_Object):
     return addLight
 
 """Returns all the lights in a room"""
-@app.get("/Rooms/{room_id}/Lights", response_model=List[Lights_Object], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Lights",tags=["Lights"], response_model=List[Lights_Object], status_code=status.HTTP_200_OK)
 async def get_All_Lights(room_id: str):
     getAllLights = db_Session.query(Light).filter(
         Light.room_id == room_id).all()
@@ -189,7 +188,7 @@ async def get_All_Lights(room_id: str):
 
 
 """Returns a specific light in a room or an error if the light does not exist in the room"""
-@app.get("/Rooms/{room_id}/Lights/{light_id}/", response_model=Lights_Object, status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Lights/{light_id}/",tags=["Lights"], response_model=Lights_Object, status_code=status.HTTP_200_OK)
 async def get_Specific_Light(room_id: str, light_id: str):
     getSpecificLight = db_Session.query(Light).filter(
         Light.room_id == room_id, Light.light_id == light_id)
@@ -203,7 +202,7 @@ async def get_Specific_Light(room_id: str, light_id: str):
    {
     "name": "Led Strip changed"
     }"""
-@app.put("/Rooms/{room_id}/Lights/{light_id}", status_code=status.HTTP_200_OK)
+@app.put("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"], status_code=status.HTTP_200_OK)
 async def update_light(room_id: str, light_id: str, request: Update_LightObject):
     updateLight = db_Session.query(Light).filter(
         Light.room_id == room_id, Light.light_id == light_id)
@@ -215,7 +214,7 @@ async def update_light(room_id: str, light_id: str, request: Update_LightObject)
     return updateLight
 
 """Deletes a specific light in a room or returns an error if the light does not exist in the room"""
-@app.delete("/Rooms/{room_id}/Lights/{light_id}", status_code=status.HTTP_200_OK)
+@app.delete("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"], status_code=status.HTTP_200_OK)
 async def delete_light(room_id: str, light_id: str):
     deleteLight = db_Session.query(Light).filter(
         Light.room_id == room_id, Light.light_id == light_id).one()
@@ -233,7 +232,7 @@ async def delete_light(room_id: str, light_id: str):
 #  Lights Activation
 """Toggles a light in a room with a specific light_id"""
 """does not contain a body"""
-@app.post("/Rooms/{room_id}/Lights/{light_id}/Activation", status_code=status.HTTP_200_OK)
+@app.post("/Rooms/{room_id}/Lights/{light_id}/Activation",tags=["Lights"], status_code=status.HTTP_200_OK)
 async def activate_Light(room_id: str, light_id: str,operation: Light_Activation_Object):
 
     data = {}
@@ -249,7 +248,7 @@ async def activate_Light(room_id: str, light_id: str,operation: Light_Activation
     return {"code": "success", "message": "Device toggled"}
 
 """ Get the details of when the light is turned on/off """
-@app.get("/Rooms/{room_id}/Lights/{light_id}/Activation",response_model=List[Light_Operation_Return_Object], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Lights/{light_id}/Activation",tags=["Lights"],response_model=List[Light_Operation_Return_Object], status_code=status.HTTP_200_OK)
 async def activate_Light(room_id: str, light_id: str):
 
     getLightDetails = db_Session.query(Light_Operation).filter(
@@ -267,7 +266,7 @@ async def activate_Light(room_id: str, light_id: str):
     "brightness": 200,
     "color": {"hex":"#466bca"}
     }"""
-@app.post("/Rooms/{room_id}/Lights/{light_id}/SetColor", status_code=status.HTTP_200_OK)
+@app.post("/Rooms/{room_id}/Lights/{light_id}/SetColor",tags=["Lights"], status_code=status.HTTP_200_OK)
 async def complex_setting_light(room_id: str, light_id: str, operation: Light_Operation_Object):
     def isValidHexCode(str):
  
@@ -329,14 +328,14 @@ async def add_Power_Plug(room_id: str, addPowerPlug: Power_Plug_Object):
     return addPowerPlug
 
 """Returns all the power plug in a room"""
-@app.get("/Rooms/{room_id}/Ventilators", response_model=List[Power_Plug_Object], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Ventilators",tags=["Ventilators"], response_model=List[Power_Plug_Object], status_code=status.HTTP_200_OK)
 async def get_All_Power_Plugs(room_id: str):
     allPowerPlugs = db_Session.query(Power_Plug).filter(
         Power_Plug.room_id == room_id).all()
     return allPowerPlugs
 
 """Returns a specific power plug in a room or an error if the power plug does not exist in the room"""
-@app.get("/Rooms/{room_id}/Ventilators/{plug_id}", response_model=Power_Plug_Object, status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Ventilators/{plug_id}", tags=["Ventilators"],response_model=Power_Plug_Object, status_code=status.HTTP_200_OK)
 async def get_Specific_Light(room_id: str, plug_id: str):
     getSpecificPowerPlug = db_Session.query(Power_Plug).filter(
         Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id)
@@ -350,7 +349,7 @@ async def get_Specific_Light(room_id: str, plug_id: str):
    {
     "name": "Plug 1 changed"
     }"""
-@app.put("/Rooms/{room_id}/Ventilators/{plug_id}", response_model=Power_Plug_Object, status_code=status.HTTP_200_OK)
+@app.put("/Rooms/{room_id}/Ventilators/{plug_id}",tags=["Ventilators"], response_model=Power_Plug_Object, status_code=status.HTTP_200_OK)
 async def update_power_plug(room_id: str, plug_id: str, request: Power_Plug_Update_Object):
     updatePowerPlug = db_Session.query(Power_Plug).filter(
         Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id)
@@ -362,7 +361,7 @@ async def update_power_plug(room_id: str, plug_id: str, request: Power_Plug_Upda
     return updatePowerPlug
 
 """Deletes a specific power plug  in a room or returns an error if the power plug does not exist in the room"""
-@app.delete("/Rooms/{room_id}/Ventilators/{plug_id}", status_code=status.HTTP_200_OK)
+@app.delete("/Rooms/{room_id}/Ventilators/{plug_id}",tags=["Ventilators"], status_code=status.HTTP_200_OK)
 async def delete_power_plug(room_id: str, plug_id: str):
     deletePowerPlug = db_Session.query(Power_Plug).filter(
         Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id).one()
@@ -403,7 +402,7 @@ async def post_operation_data_power_plugs(room_id: str, plug_id: str, body: Powe
 
 """Toggles a power plug(ventilator) in a room with a specific plug_id"""
 """does not contain a body"""
-@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Activation", status_code=status.HTTP_200_OK)
+@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Activation",tags=["Ventilators"], status_code=status.HTTP_200_OK)
 async def activate_Power_Plug(room_id: str, plug_id: str,body: Power_Plug_Storing_Object):
 
     new_operation = Power_Plug_Operation(room_id=room_id, plug_id=plug_id, time=datetime.now(), turnon = body.turnon)
@@ -423,7 +422,7 @@ async def activate_Power_Plug(room_id: str, plug_id: str,body: Power_Plug_Storin
     return new_operation
 
 """ Get the details of when the Ventilator is turned on/off """
-@app.get("/Rooms/{room_id}/Ventilators/{plug_id}/Activation",response_model=List[Power_Plug_Operation_Object], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Ventilators/{plug_id}/Activation",tags=["Ventilators"],response_model=List[Power_Plug_Operation_Object], status_code=status.HTTP_200_OK)
 async def ventilator_Details(room_id: str, plug_id: str):
 
     getVentilatorDetails = db_Session.query(Power_Plug_Operation).filter(
@@ -480,13 +479,13 @@ async def add_AirQuality_Properties(addAirQuality:AirQuality_Properties_Object):
         
     return addAirQuality
 
-@app.get("/Room/{room_id}/AirQuality/", response_model=AirQuality_Properties_Object, status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/",tags=["AirQuality"], response_model=AirQuality_Properties_Object, status_code = status.HTTP_200_OK)
 async def get_AirQuality_Rooms(room_id:str):
     filteredAQPresults= db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
     AQPresults=filteredAQPresults.order_by(Airqualityproperty.time.desc()).first()
     return AQPresults
     
-@app.get("/Room/{room_id}/AirQuality/temperature/", response_model=List[AirQuality_Temperature_Object], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/temperature/",tags=["AirQuality"], response_model=List[AirQuality_Temperature_Object], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Temperature(room_id:str):
     AQPTemperature=db_Session.query(Airqualityproperty.room_id,Airqualityproperty.temperature,Airqualityproperty.temperaturemeasurementunit,Airqualityproperty.ventilator,Airqualityproperty.time).filter(Airqualityproperty.room_id==room_id)
     if not AQPTemperature.first():
@@ -494,7 +493,7 @@ async def get_AirQuality_Temperature(room_id:str):
                             detail=f'No temperature data available for room id {room_id}')
     return AQPTemperature
 
-@app.get("/Room/{room_id}/AirQuality/humidity/", response_model=List[AirQuality_Humidity_Object], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/humidity/",tags=["AirQuality"], response_model=List[AirQuality_Humidity_Object], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Humidity(room_id:str):
     AQPHumidity=db_Session.query(Airqualityproperty.room_id,Airqualityproperty.humidity,Airqualityproperty.humiditymeasurementunit,Airqualityproperty.ventilator,Airqualityproperty.time).filter(Airqualityproperty.room_id==room_id)
     if not AQPHumidity.first():
@@ -502,7 +501,7 @@ async def get_AirQuality_Humidity(room_id:str):
                             detail=f'No humidity data available for room id {room_id}')
     return AQPHumidity
 
-@app.get("/Room/{room_id}/AirQuality/co2/", response_model=List[AirQuality_Co2_Object], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/co2/",tags=["AirQuality"], response_model=List[AirQuality_Co2_Object], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Co2(room_id:str):
     AQPCo2=db_Session.query(Airqualityproperty.room_id,Airqualityproperty.co2,Airqualityproperty.co2measurementunit,Airqualityproperty.ventilator,Airqualityproperty.time).filter(Airqualityproperty.room_id==room_id)
     if not AQPCo2.first():
@@ -514,19 +513,19 @@ async def get_AirQuality_Co2(room_id:str):
 @app.post("/Rooms/{room_id}/Doors/", tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def add_Door(status_code):
     return status_code
-@app.get("/Rooms/{room_id}/Doors/", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.get("/Rooms/{room_id}/Doors/",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def get_Door(status_code):
     return status_code
-@app.get("/Rooms/{room_id}/Doors/{door_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.get("/Rooms/{room_id}/Doors/{door_id}",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def get_SpecificDoor(status_code):
     return status_code
-@app.put("/Rooms/{room_id}/Doors/{door_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.put("/Rooms/{room_id}/Doors/{door_id}",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def update_SpecificDoor(status_code):
     return status_code
-@app.post("/Rooms/{room_id}/Doors/{door_id}/Open", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.post("/Rooms/{room_id}/Doors/{door_id}/Open",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def open_Door(status_code):
     return status_code
-@app.get("/Rooms/{room_id}/Doors/{door_id}/Open", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.get("/Rooms/{room_id}/Doors/{door_id}/Open",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def getOpen_Door(status_code):
     return status_code
 
@@ -534,18 +533,18 @@ async def getOpen_Door(status_code):
 @app.post("/Rooms/{room_id}/Windows/", tags=["Windows"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def add_Window(status_code):
     return status_code
-@app.get("/Rooms/{room_id}/Windows/", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.get("/Rooms/{room_id}/Windows/",tags=["Windows"],  status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def get_Window(status_code):
     return status_code
-@app.get("/Rooms/{room_id}/Windows/{window_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.get("/Rooms/{room_id}/Windows/{window_id}",tags=["Windows"],  status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def get_SpecificWindow(status_code):
     return status_code
-@app.put("/Rooms/{room_id}/Windows/{window_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.put("/Rooms/{room_id}/Windows/{window_id}",tags=["Windows"],  status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def update_SpecificWindow(status_code):
     return status_code
-@app.post("/Rooms/{room_id}/Windows/{window_id}/Open", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.post("/Rooms/{room_id}/Windows/{window_id}/Open", tags=["Windows"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def open_Window(status_code):
     return status_code
-@app.get("/Rooms/{room_id}/Windows/{window_id}/Open", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+@app.get("/Rooms/{room_id}/Windows/{window_id}/Open",tags=["Windows"],  status_code=status.HTTP_501_NOT_IMPLEMENTED)
 async def getOpen_Window(status_code):
     return status_code       
