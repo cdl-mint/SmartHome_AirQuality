@@ -34,13 +34,14 @@ def on_message(client, userdata, message):
                     data["turnon"] = False
                 else:
                     data["turnon"] = True
+                    
                 data["brightness"] = int(payload["brightness"])
                 data["color_x"] = float(payload["color"]["x"])
                 data["color_y"] = float(payload["color"]["y"])
 
                 
                 res = requests.post(
-                    f"{BASE_URL}{device_room}/Lights/{device}/Operations", json=data)
+                    f"{BASE_URL}{device_room}/Lights/{device}/Activation", json=data)
             
             elif device_group == "Motion_Sensors":
                 data = {}

@@ -6,10 +6,15 @@ from datetime import datetime
 #Smart_Room
 class Room_Object(BaseModel):
     room_id: str
-    people_count:int
     room_size:int
     measurement_unit:str
 
+    class Config:
+        orm_mode = True
+
+class People_In_RoomObject(BaseModel):
+    people_count:int
+    
     class Config:
         orm_mode = True
 
@@ -34,7 +39,11 @@ class Update_LightObject(BaseModel):
     class Config:
         orm_mode = True
 
-
+class Light_Activation_Object(BaseModel):
+    turnon:bool
+    class Config:
+        orm_mode = True
+        
 class Light_Operation_Object(BaseModel):
     turnon:bool
     brightness: int
@@ -47,22 +56,18 @@ class Light_Operation_Object(BaseModel):
 class Light_Operation_Storing_Object(BaseModel):
     turnon:bool
     brightness: int
-    color_x: float
-    color_y: float
-
+    hex: str
     class Config:
         orm_mode = True  
 
 class Light_Operation_Return_Object(BaseModel):
     turnon:bool
     brightness: int
-    color_x: float
-    color_y: float
+    hex: str
     time: Timestamp
     
     class Config:
         orm_mode = True
-
 
 
 class Time_Query_Object(BaseModel):
@@ -70,35 +75,6 @@ class Time_Query_Object(BaseModel):
     timespan_from: int
     timespan_to: int
     
-
-
-class Motion_Sensor_Object(BaseModel):
-    sensor_id: str
-    name: str
-
-    class Config:
-        orm_mode = True        
-
-class Motion_Sensor_Update_Object(BaseModel):
-    name: str
-
-    class Config:
-        orm_mode = True
-
-
-class Motion_Sensor_Operation_Object(BaseModel):
-    detection: bool
-    time: Timestamp
-
-    class Config:
-        orm_mode = True
-
-class Motion_Sensor_Storing_Object(BaseModel):
-    detection:bool
-
-    class Config:
-        orm_mode = True
-
 
 class Power_Plug_Object(BaseModel):
     plug_id: str

@@ -9,14 +9,47 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from session import db_Session,settings
 from databases import Database
-from schema import Room, Light, Light_Operation, Power_Plug, Power_Plug_Operation,Airqualityproperty
-from fastAPI_models import Room_Object, Update_RoomObject, Lights_Object, Light_Operation_Object, Light_Operation_Return_Object, Update_LightObject, Time_Query_Object, Light_Operation_Storing_Object, Power_Plug_Object, Power_Plug_Update_Object, Power_Plug_Operation_Object, Power_Plug_Storing_Object,AirQuality_Properties_Object,AirQuality_Co2_Object,AirQuality_Temperature_Object,AirQuality_Humidity_Object
+from schema import Room,PeopleInRoom,Light, Light_Operation, Power_Plug, Power_Plug_Operation,Airqualityproperty
+from fastAPI_models import Room_Object, Update_RoomObject, Lights_Object, Light_Operation_Object, Light_Operation_Return_Object, Update_LightObject, Time_Query_Object, Light_Operation_Storing_Object, Power_Plug_Object, Power_Plug_Update_Object, Power_Plug_Operation_Object, Power_Plug_Storing_Object,AirQuality_Properties_Object,AirQuality_Co2_Object,AirQuality_Temperature_Object,AirQuality_Humidity_Object,People_In_RoomObject,Light_Activation_Object
 from typing import List
 from sqlalchemy import and_, text
 from publisher import publish_message
 
+tags_metadata = [
+    {
+        "name": "Rooms",
+        "description": "CRUD operations on room",
+    },
+    {
+        "name": "Lights",
+        "description": "Add lights in room, operate them (turn on/off) and change colors (use only hex color code)",
+         "externalDocs": {
+            "description": "sample hex color code",
+            "url": "https://marketing.istockphoto.com/blog/hex-colors-guide/#:~:text=A%20hex%20color%20code%20is,value%20from%200%20to%20255.&text=The%20code%20is%20written%20using,is%20E06910%20in%20hexadecimal%20code.",
+        },
+    },
+    {
+        "name": "Ventilators",
+        "description": "Attach ventilators to smart plug and operate them (turn on/off) based on indoor air quality",
+        
+    },
+    {
+        "name": "Doors",
+        "description": "CRUD operations on doors- Not implemented",
+    },
+    {
+        "name": "Windows",
+        "description": "CRUD operations on windows- Not implemented",
+    },
+     {
+        "name": "AirQuality",
+        "description": "CRUD operations on air quality measurements (co2, temperature and humidity) in room",
+        
+    },
+]
 
 app = FastAPI(title=settings.PROJECT_NAME,version=settings.PROJECT_VERSION)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,12 +66,11 @@ app.add_middleware(
    {
     "room_id": 1,
     "room_size": 50,
-    "people_count":2,
     "measurement_unit":"50 sq.m"
     }"""
-@app.post("/Rooms", response_model=Room_Object, status_code=status.HTTP_201_CREATED)
+@app.post("/Rooms", tags=["Rooms"], response_model=Room_Object, status_code=status.HTTP_201_CREATED)
 async def add_Room(addRoom: Room_Object):
-    db_classes = Room(room_id=addRoom.room_id, people_count=addRoom.people_count,
+    db_classes = Room(room_id=addRoom.room_id,
                       room_size=addRoom.room_size, measurement_unit=addRoom.measurement_unit)
     try:
         db_Session.add(db_classes)
@@ -55,6 +87,29 @@ async def add_Room(addRoom: Room_Object):
 async def get_AllRoom_Details():
     results = db_Session.query(Room).all()
     return results
+
+""" Add number of people in room """
+@app.post("/Rooms/{room_id}/PeopleInRoom", response_model=People_In_RoomObject, status_code=status.HTTP_201_CREATED)
+async def add_People_Room(room_id: str,addPeopleRoom: People_In_RoomObject):
+    db_classes = PeopleInRoom(room_id=room_id,people_count=addPeopleRoom.people_count)
+    try:
+        db_Session.add(db_classes)
+        db_Session.flush()
+        db_Session.commit()
+    except Exception as ex:
+        logger.error(f"{ex.__class__.__name__}: {ex}")
+        db_Session.rollback()
+
+    return addPeopleRoom
+
+"""Returns people count in room"""
+@app.get("/Rooms/{room_id}/PeopleInRoom", response_model=People_In_RoomObject, status_code=status.HTTP_200_OK)
+async def get_PeopleCount_Details(room_id: str):
+    peoplecount = db_Session.query(PeopleInRoom).filter(PeopleInRoom.room_id==room_id)
+    if not peoplecount.first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'people in Room with the id {room_id} does not exist')
+    return peoplecount
 
 """Returns a room with a certain room_id or an error if the room does not exist"""
 @app.get("/Rooms/{room_id}", response_model= Room_Object, status_code=status.HTTP_200_OK)
@@ -100,6 +155,7 @@ async def delete_Room(room_id: str):
     db_Session.commit()
     return {"code": "success", "message": f"deleted room with id {room_id}"}
 
+ 
 # Lights
 """Creates a new light in a room in the database and returns the light on success. Light_id needs to be unique in the room (Light_id is unique per definition due to zigbee)"""
 """Example light object 
@@ -107,7 +163,7 @@ async def delete_Room(room_id: str):
     "light_id": "0x804b50fffeb72fd9",
     "name": "Led Strip"
     }"""
-@app.post("/Rooms/{room_id}/Lights", response_model=Lights_Object, status_code=status.HTTP_201_CREATED)
+@app.post("/Rooms/{room_id}/Lights", tags=["Lights"], response_model=Lights_Object, status_code=status.HTTP_201_CREATED)
 async def add_light(room_id: str, addLight: Lights_Object):
     addLight = Light(
         room_id=room_id, light_id=addLight.light_id, name=addLight.name)
@@ -178,15 +234,30 @@ async def delete_light(room_id: str, light_id: str):
 """Toggles a light in a room with a specific light_id"""
 """does not contain a body"""
 @app.post("/Rooms/{room_id}/Lights/{light_id}/Activation", status_code=status.HTTP_200_OK)
-async def activate_Light(room_id: str, light_id: str):
+async def activate_Light(room_id: str, light_id: str,operation: Light_Activation_Object):
 
     data = {}
-    data["state"] = "TOGGLE"
+    #data["state"] = "TOGGLE"
+    if operation.turnon == True:
+        data["state"] = "ON"
+    else:
+        data["state"] = "OFF"
     topic = f"zigbee2mqtt/{light_id}/set"
 
     publish_message(topic, data)
 
     return {"code": "success", "message": "Device toggled"}
+
+""" Get the details of when the light is turned on/off """
+@app.get("/Rooms/{room_id}/Lights/{light_id}/Activation",response_model=List[Light_Operation_Return_Object], status_code=status.HTTP_200_OK)
+async def activate_Light(room_id: str, light_id: str):
+
+    getLightDetails = db_Session.query(Light_Operation).filter(
+        Light.room_id == room_id, Light.light_id == light_id)
+    if not getLightDetails.all():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Light with the id {light_id} is not available in room {room_id}')
+    return getLightDetails
 
 # Light set color
 """Changes the settings of a light via a Light Operation Objects."""
@@ -215,7 +286,7 @@ async def complex_setting_light(room_id: str, light_id: str, operation: Light_Op
     if operation.turnon == True:
         data["state"] = "ON"
     else:
-        data["state"] = "OFF"
+        data["state"] = "ON"
 
     if (isValidHexCode(operation.hex)):
         color["hex"] = operation.hex
@@ -240,7 +311,7 @@ async def complex_setting_light(room_id: str, light_id: str, operation: Light_Op
     "plug_id": "0x804b50fffeb72fd9",
     "name": "Plug 1"
     }"""
-@app.post("/Rooms/{room_id}/Ventilators", response_model=Power_Plug_Object, status_code=status.HTTP_201_CREATED)
+@app.post("/Rooms/{room_id}/Ventilators",tags=["Ventilators"], response_model=Power_Plug_Object, status_code=status.HTTP_201_CREATED)
 async def add_Power_Plug(room_id: str, addPowerPlug: Power_Plug_Object):
     addPowerPlug = Power_Plug(
         room_id=room_id, plug_id=addPowerPlug.plug_id, name=addPowerPlug.name)
@@ -312,8 +383,29 @@ async def delete_power_plug(room_id: str, plug_id: str):
     {
         "turnon": True
     }""" 
-@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Operations", status_code = status.HTTP_200_OK)
+""" @app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Operations", status_code = status.HTTP_200_OK)
 async def post_operation_data_power_plugs(room_id: str, plug_id: str, body: Power_Plug_Storing_Object):
+    new_operation = Power_Plug_Operation(room_id=room_id, plug_id=plug_id, time=datetime.now(), turnon = body.turnon)
+
+    last_operation = db_Session.query(Power_Plug_Operation).filter(Power_Plug_Operation.room_id == room_id, Power_Plug_Operation.plug_id == plug_id).order_by(Power_Plug_Operation.time.desc()).first()
+
+    #Lupus 12133 plugs are not completely compatible with zigbee2mqtt and tend to send multiple state events --> this ensures to only store one of the event states
+    if last_operation == None or (last_operation != None and last_operation.turnon != new_operation.turnon):
+        try:
+            db_Session.add(new_operation)
+            db_Session.flush()
+            db_Session.commit()
+        except Exception as ex:
+            logger.error(f"{ex.__class__.__name__}: {ex}")
+            db_Session.rollback()
+
+    return new_operation """
+
+"""Toggles a power plug(ventilator) in a room with a specific plug_id"""
+"""does not contain a body"""
+@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Activation", status_code=status.HTTP_200_OK)
+async def activate_Power_Plug(room_id: str, plug_id: str,body: Power_Plug_Storing_Object):
+
     new_operation = Power_Plug_Operation(room_id=room_id, plug_id=plug_id, time=datetime.now(), turnon = body.turnon)
 
     last_operation = db_Session.query(Power_Plug_Operation).filter(Power_Plug_Operation.room_id == room_id, Power_Plug_Operation.plug_id == plug_id).order_by(Power_Plug_Operation.time.desc()).first()
@@ -330,19 +422,16 @@ async def post_operation_data_power_plugs(room_id: str, plug_id: str, body: Powe
 
     return new_operation
 
-"""Toggles a power plug(ventilator) in a room with a specific plug_id"""
-"""does not contain a body"""
-@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Activation", status_code=status.HTTP_200_OK)
-async def activate_Power_Plug(room_id: str, plug_id: str):
+""" Get the details of when the Ventilator is turned on/off """
+@app.get("/Rooms/{room_id}/Ventilators/{plug_id}/Activation",response_model=List[Power_Plug_Operation_Object], status_code=status.HTTP_200_OK)
+async def ventilator_Details(room_id: str, plug_id: str):
 
-    data = {}
-    data["state"] = "TOGGLE"
-    topic = f"zigbee2mqtt/{plug_id}/set"
-
-    publish_message(topic, data)
-
-    return {"code": "success", "message": "Device toggled"}
-
+    getVentilatorDetails = db_Session.query(Power_Plug_Operation).filter(
+        Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id)
+    if not getVentilatorDetails.all():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Ventilator with the id {plug_id} is not available in room {room_id}')
+    return getVentilatorDetails
 
 #**Helper Methods**
 
@@ -378,7 +467,7 @@ def delete_from_json(device_key):
 
 # airQualityinRoom
 
-@app.post("/Room/AirQuality/", response_model=AirQuality_Properties_Object, status_code = status.HTTP_201_CREATED)
+@app.post("/Room/AirQuality/",tags=["AirQuality"], response_model=AirQuality_Properties_Object, status_code = status.HTTP_201_CREATED)
 async def add_AirQuality_Properties(addAirQuality:AirQuality_Properties_Object):
     db_AQP=Airqualityproperty(room_id=addAirQuality.room_id,device_id=addAirQuality.device_id,ventilator=addAirQuality.ventilator,co2=addAirQuality.co2,co2measurementunit=addAirQuality.co2measurementunit,temperature=addAirQuality.temperature,temperaturemeasurementunit=addAirQuality.temperaturemeasurementunit,humidity=addAirQuality.humidity,humiditymeasurementunit=addAirQuality.humiditymeasurementunit,time=addAirQuality.time)
     try:
@@ -420,3 +509,43 @@ async def get_AirQuality_Co2(room_id:str):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'No co2 data available for room id {room_id}')
     return AQPCo2    
+
+# Doors
+@app.post("/Rooms/{room_id}/Doors/", tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def add_Door(status_code):
+    return status_code
+@app.get("/Rooms/{room_id}/Doors/", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def get_Door(status_code):
+    return status_code
+@app.get("/Rooms/{room_id}/Doors/{door_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def get_SpecificDoor(status_code):
+    return status_code
+@app.put("/Rooms/{room_id}/Doors/{door_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def update_SpecificDoor(status_code):
+    return status_code
+@app.post("/Rooms/{room_id}/Doors/{door_id}/Open", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def open_Door(status_code):
+    return status_code
+@app.get("/Rooms/{room_id}/Doors/{door_id}/Open", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def getOpen_Door(status_code):
+    return status_code
+
+# Windows
+@app.post("/Rooms/{room_id}/Windows/", tags=["Windows"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def add_Window(status_code):
+    return status_code
+@app.get("/Rooms/{room_id}/Windows/", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def get_Window(status_code):
+    return status_code
+@app.get("/Rooms/{room_id}/Windows/{window_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def get_SpecificWindow(status_code):
+    return status_code
+@app.put("/Rooms/{room_id}/Windows/{window_id}", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def update_SpecificWindow(status_code):
+    return status_code
+@app.post("/Rooms/{room_id}/Windows/{window_id}/Open", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def open_Window(status_code):
+    return status_code
+@app.get("/Rooms/{room_id}/Windows/{window_id}/Open", status_code=status.HTTP_501_NOT_IMPLEMENTED)
+async def getOpen_Window(status_code):
+    return status_code       
