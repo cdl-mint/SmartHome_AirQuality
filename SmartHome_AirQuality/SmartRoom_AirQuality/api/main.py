@@ -41,7 +41,7 @@ tags_metadata = [
         "name": "Windows",
         "description": "CRUD operations on windows- Not implemented",
     },
-     {
+    {
         "name": "AirQuality",
         "description": "CRUD operations on air quality measurements (co2, temperature and humidity) in room",
         
@@ -63,15 +63,14 @@ app.add_middleware(
 
 """Creates a new room in the database and returns the room on success. Room_id needs to be unique"""
 """Example room object 
-   {
+{
     "room_id": 1,
     "room_size": 50,
     "measurement_unit":"50 sq.m"
-    }"""
+}"""
 @app.post("/Rooms", tags=["Rooms"], response_model=Room_Object, status_code=status.HTTP_201_CREATED)
 async def add_Room(addRoom: Room_Object):
-    db_classes = Room(room_id=addRoom.room_id,
-                      room_size=addRoom.room_size, measurement_unit=addRoom.measurement_unit)
+    db_classes = Room(room_id=addRoom.room_id,room_size=addRoom.room_size, measurement_unit=addRoom.measurement_unit)
     try:
         db_Session.add(db_classes)
         db_Session.flush()
@@ -147,10 +146,6 @@ async def delete_Room(room_id: str):
     if not deleteRoom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Room with the room id {room_id} is not found')
-
-        
-   
-
     db_Session.delete(deleteRoom)
     db_Session.commit()
     return {"code": "success", "message": f"deleted room with id {room_id}"}
@@ -158,10 +153,10 @@ async def delete_Room(room_id: str):
 # Lights
 """Creates a new light in a room in the database and returns the light on success. Light_id needs to be unique in the room (Light_id is unique per definition due to zigbee)"""
 """Example light object 
-   {
+{
     "light_id": "0x804b50fffeb72fd9",
     "name": "Led Strip"
-    }"""
+}"""
 @app.post("/Rooms/{room_id}/Lights", tags=["Lights"], response_model=Lights_Object, status_code=status.HTTP_201_CREATED)
 async def add_light(room_id: str, addLight: Lights_Object):
     addLight = Light(
@@ -481,70 +476,88 @@ async def add_AirQuality_Properties(addAirQuality:AirQuality_Properties_Object):
 
 @app.get("/Room/{room_id}/AirQuality/",tags=["AirQuality"], response_model=AirQuality_Properties_Object, status_code = status.HTTP_200_OK)
 async def get_AirQuality_Rooms(room_id:str):
-    filteredAQPresults= db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
-    AQPresults=filteredAQPresults.order_by(Airqualityproperty.time.desc()).first()
+    filteredAQPResults= db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
+    AQPresults=filteredAQPResults.order_by(Airqualityproperty.time.desc()).first()
+    if not AQPresults:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f'No air quality measurements available for the room {room_id}')
     return AQPresults
     
-@app.get("/Room/{room_id}/AirQuality/temperature/",tags=["AirQuality"], response_model=List[AirQuality_Temperature_Object], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/temperature/",tags=["AirQuality"], response_model=AirQuality_Temperature_Object, status_code = status.HTTP_200_OK)
 async def get_AirQuality_Temperature(room_id:str):
-    AQPTemperature=db_Session.query(Airqualityproperty.room_id,Airqualityproperty.temperature,Airqualityproperty.temperaturemeasurementunit,Airqualityproperty.ventilator,Airqualityproperty.time).filter(Airqualityproperty.room_id==room_id)
-    if not AQPTemperature.first():
+    filteredAQTResults= db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
+    AQPTemperature=filteredAQTResults.order_by(Airqualityproperty.time.desc()).first()
+    if not AQPTemperature:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'No temperature data available for room id {room_id}')
     return AQPTemperature
 
-@app.get("/Room/{room_id}/AirQuality/humidity/",tags=["AirQuality"], response_model=List[AirQuality_Humidity_Object], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/humidity/",tags=["AirQuality"], response_model=AirQuality_Humidity_Object, status_code = status.HTTP_200_OK)
 async def get_AirQuality_Humidity(room_id:str):
-    AQPHumidity=db_Session.query(Airqualityproperty.room_id,Airqualityproperty.humidity,Airqualityproperty.humiditymeasurementunit,Airqualityproperty.ventilator,Airqualityproperty.time).filter(Airqualityproperty.room_id==room_id)
-    if not AQPHumidity.first():
+    filteredAQHResults=db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
+    AQPHumidity=filteredAQHResults.order_by(Airqualityproperty.time.desc()).first()
+    if not AQPHumidity:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'No humidity data available for room id {room_id}')
     return AQPHumidity
 
-@app.get("/Room/{room_id}/AirQuality/co2/",tags=["AirQuality"], response_model=List[AirQuality_Co2_Object], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/co2/",tags=["AirQuality"], response_model=AirQuality_Co2_Object, status_code = status.HTTP_200_OK)
 async def get_AirQuality_Co2(room_id:str):
-    AQPCo2=db_Session.query(Airqualityproperty.room_id,Airqualityproperty.co2,Airqualityproperty.co2measurementunit,Airqualityproperty.ventilator,Airqualityproperty.time).filter(Airqualityproperty.room_id==room_id)
-    if not AQPCo2.first():
+    filteredAQCo2Results=db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
+    AQPCo2=filteredAQCo2Results.order_by(Airqualityproperty.time.desc()).first()
+    if not AQPCo2:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'No co2 data available for room id {room_id}')
     return AQPCo2    
 
 # Doors
 @app.post("/Rooms/{room_id}/Doors/", tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def add_Door(status_code):
-    return status_code
+async def add_Door():
+    addDoor=status.HTTP_501_NOT_IMPLEMENTED+f'-Not Implemented'
+    return addDoor
 @app.get("/Rooms/{room_id}/Doors/",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def get_Door(status_code):
-    return status_code
+async def get_Door():
+    getDoor=status.HTTP_501_NOT_IMPLEMENTED
+    return getDoor
 @app.get("/Rooms/{room_id}/Doors/{door_id}",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def get_SpecificDoor(status_code):
-    return status_code
+async def get_SpecificDoor():
+    getSpecificDoor=status.HTTP_501_NOT_IMPLEMENTED
+    return getSpecificDoor
 @app.put("/Rooms/{room_id}/Doors/{door_id}",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def update_SpecificDoor(status_code):
-    return status_code
+async def update_SpecificDoor():
+    updateSpecificDoor=status.HTTP_501_NOT_IMPLEMENTED
+    return updateSpecificDoor
 @app.post("/Rooms/{room_id}/Doors/{door_id}/Open",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def open_Door(status_code):
-    return status_code
+async def open_Door():
+    openSpecificDoor=status.HTTP_501_NOT_IMPLEMENTED
+    return openSpecificDoor
 @app.get("/Rooms/{room_id}/Doors/{door_id}/Open",tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def getOpen_Door(status_code):
-    return status_code
+async def getOpen_Door():
+    detailDoorOperation=status.HTTP_501_NOT_IMPLEMENTED
+    return detailDoorOperation
 
 # Windows
 @app.post("/Rooms/{room_id}/Windows/", tags=["Windows"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def add_Window(status_code):
-    return status_code
+async def add_Window():
+    addWindow=status.HTTP_501_NOT_IMPLEMENTED
+    return addWindow
 @app.get("/Rooms/{room_id}/Windows/",tags=["Windows"],  status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def get_Window(status_code):
-    return status_code
+async def get_Window():
+    getWindow=status.HTTP_501_NOT_IMPLEMENTED
+    return getWindow
 @app.get("/Rooms/{room_id}/Windows/{window_id}",tags=["Windows"],  status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def get_SpecificWindow(status_code):
-    return status_code
+async def get_SpecificWindow():
+    getSpecificWindow=status.HTTP_501_NOT_IMPLEMENTED
+    return getSpecificWindow
 @app.put("/Rooms/{room_id}/Windows/{window_id}",tags=["Windows"],  status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def update_SpecificWindow(status_code):
-    return status_code
+async def update_SpecificWindow():
+    UpdateSpecificWindow=status.HTTP_501_NOT_IMPLEMENTED
+    return UpdateSpecificWindow
 @app.post("/Rooms/{room_id}/Windows/{window_id}/Open", tags=["Windows"], status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def open_Window(status_code):
-    return status_code
+async def open_Window():
+    openSpecificWindow=status.HTTP_501_NOT_IMPLEMENTED
+    return openSpecificWindow
 @app.get("/Rooms/{room_id}/Windows/{window_id}/Open",tags=["Windows"],  status_code=status.HTTP_501_NOT_IMPLEMENTED)
-async def getOpen_Window(status_code):
-    return status_code       
+async def getOpen_Window():
+    detailWindowOperation=status.HTTP_501_NOT_IMPLEMENTED
+    return detailWindowOperation
+       

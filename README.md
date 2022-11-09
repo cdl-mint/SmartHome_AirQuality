@@ -30,7 +30,7 @@ After successful installation of the docker in your system, clone the repository
 
 If the build is successful, you can see the services running on the ports as shown in table below. Navigate to the browser and check if the ports are running in localhost, for example the fastapi provides the graphical interface by default for performing the CRUD operations and can be viewed with the 'docs' path. The sample url for the air quality use case will be
 
-'http://localhost:8000/docs'.
+'http://localhost:8002/docs'.
 
 | services                        | port |
 | ------------------------------- | ---- |
