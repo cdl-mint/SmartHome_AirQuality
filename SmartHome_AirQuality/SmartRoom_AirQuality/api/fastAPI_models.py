@@ -2,7 +2,24 @@ from sqlite3 import Timestamp
 from xmlrpc.client import DateTime
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Union
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Union[str, None] = None
+#User
+class User(BaseModel):
+    username: str
+    email: Union[str, None] = None
+    full_name: Union[str, None] = None
+    disabled: Union[bool, None] = None
+
+class UserInDB(User):
+    hashed_password: str
+    
 #Smart_Room
 class Room_Object(BaseModel):
     room_id: str
