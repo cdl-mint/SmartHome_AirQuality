@@ -11,6 +11,9 @@ class Settings:
     POSTGRES_PORT : str = "5432"
     POSTGRES_DB : str ="cdl-mint"
     DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}:{POSTGRES_PORT}/{POSTGRES_DB}"
+    SECRET_KEY :str="ee46de360b7ab5ab35862b7285b51613a556da68764f8f1f2079988ccaed3681"
+    USERNAME:str="student"
+    PASSWORD:str="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
 
 #psycopg2 db url format
     psycopg2_DATABASE_URL="user='{}' password='{}' host='{}' dbname='{}' port='{}'".format(POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_SERVER, POSTGRES_DB, POSTGRES_PORT)

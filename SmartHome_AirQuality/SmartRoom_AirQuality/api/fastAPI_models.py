@@ -8,51 +8,47 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
-    username: Union[str, None] = None
-#User
-class User(BaseModel):
+class UserAuthenticate(BaseModel):
     username: str
-    email: Union[str, None] = None
-    full_name: Union[str, None] = None
-    disabled: Union[bool, None] = None
+    password: str
 
-class UserInDB(User):
-    hashed_password: str
+class UserInfoBase(BaseModel):
+    username: str
+    class Config:
+        orm_mode = True
+        
+class UserCreate(UserInfoBase):
+    password: str
+
     
 #Smart_Room
 class Room_Object(BaseModel):
     room_id: str
     room_size:int
     measurement_unit:str
-
     class Config:
         orm_mode = True
 
-class People_In_RoomObject(BaseModel):
+class PeopleInRoomObject(BaseModel):
+    room_id:str
     people_count:int
-    
     class Config:
         orm_mode = True
 
 class Update_RoomObject(BaseModel):
     room_size:int
     measurement_unit:str
-  
     class Config:
         orm_mode = True
 
 class Lights_Object(BaseModel):
     light_id: str
     name: str
-    
-
     class Config:
         orm_mode = True
 
 class Update_LightObject(BaseModel):
     name: str
-
     class Config:
         orm_mode = True
 
@@ -65,8 +61,6 @@ class Light_Operation_Object(BaseModel):
     turnon:bool
     brightness: int
     hex: str
-
-    
     class Config:
         orm_mode = True        
 
@@ -82,7 +76,6 @@ class Light_Operation_Return_Object(BaseModel):
     brightness: int
     hex: str
     time: Timestamp
-    
     class Config:
         orm_mode = True
 
@@ -96,7 +89,6 @@ class Time_Query_Object(BaseModel):
 class Power_Plug_Object(BaseModel):
     plug_id: str
     name: str
-
     class Config:
         orm_mode = True
 
@@ -108,13 +100,11 @@ class Power_Plug_Operation_Object(BaseModel):
 
 class Power_Plug_Update_Object(BaseModel):
     name: str
-
     class Config:
         orm_mode = True
 
 class Power_Plug_Storing_Object(BaseModel):
     turnon:bool
-
     class Config:
         orm_mode = True
 

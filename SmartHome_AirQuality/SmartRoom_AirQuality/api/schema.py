@@ -6,6 +6,12 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 metadata = Base.metadata
 
+class UserDetails(Base):
+    __tablename__ = "user_details"
+
+    username = Column(String, primary_key=True)
+    user_password = Column(String)
+    
 
 class Room(Base):
     __tablename__ = 'room'

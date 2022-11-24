@@ -51,7 +51,7 @@ def on_message(client, userdata, message):
                 res = requests.post(
                     f"{BASE_URL}{device_room}/Motion_Sensors/{device}/Operations", json=data)
 
-            elif device_group == "Power_Plugs":
+            elif device_group == "Ventilators":
                 data = {}
                 if payload["state"] == "OFF":
                     data["turnon"] = False
@@ -59,7 +59,7 @@ def on_message(client, userdata, message):
                     data["turnon"] = True
                 
                 res = requests.post(
-                    f"{BASE_URL}{device_room}/Power_Plugs/{device}/Operations", json=data)
+                    f"{BASE_URL}{device_room}/Ventilators/{device}/Operations", json=data)
 
 
             ##For this project the remote is not maintained on the API level - it is just used here to map actions to the buttons##
@@ -99,5 +99,5 @@ client.on_message = on_message
 client.on_connect = on_connect
 
 ##CHANGE IP ADDRESS HERE##
-client.connect("140.78.42.123", 1883, 60)
+client.connect("10.78.42.10", 1883, 60)
 client.loop_forever()

@@ -1,3 +1,7 @@
+CREATE TABLE User_Details(
+	username varchar PRIMARY KEY NOT NULL,
+	user_password varchar NOT NULL
+);
 CREATE TABLE Room(
 	room_Id varchar PRIMARY KEY NOT NULL,
 	room_Size int NOT NULL,
