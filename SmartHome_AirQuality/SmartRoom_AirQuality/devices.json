@@ -1,10 +1,6 @@
 {
     "Licht": {
         "device_type": "Lights",
-        "device_room": "0090"
-    },
-    "SmartPlug1": {
-        "device_type": "Ventilators",
-        "device_room": "0090"
+        "device_room": "0091"
     }
 }

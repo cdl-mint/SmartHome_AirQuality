@@ -1,8 +1,8 @@
 version: '3.8'
 services:
 
-  smartroom_airquality:
-    container_name: smartroom_airquality_api
+  smartroom_airquality_api_students:
+    container_name: smartroom_airquality_api_students
     build:
       context: .
       dockerfile: ./SmartRoom_AirQuality/Dockerfile
@@ -30,12 +30,12 @@ services:
     command: python subscriber.py
 
     depends_on:
-      - smartroom_airquality
+      - smartroom_airquality_api_students
     volumes:
       - ./SmartRoom_AirQuality/devices.json:/app/devices.json
 
-  grafana:
-    container_name: grafana
+  grafana_students:
+    container_name: grafana_students
     image: grafana/grafana:9.0.6
     ports:
       - 3001:3000
@@ -57,8 +57,8 @@ services:
       - POSTGRES_PASSWORD=cdlmint
       - POSTGRES_DB=cdl-mint
 
-  pgadmin:
-    container_name: pgadmin
+  pgadmin_students:
+    container_name: pgadmin_students
     image: dpage/pgadmin4
     environment:
       - PGADMIN_DEFAULT_EMAIL=pgadmin4@pgadmin.org

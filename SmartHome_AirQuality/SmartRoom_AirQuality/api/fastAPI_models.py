@@ -2,7 +2,7 @@ from sqlite3 import Timestamp
 from xmlrpc.client import DateTime
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Union
+from typing import Optional, Union
 
 class Token(BaseModel):
     access_token: str
@@ -36,8 +36,8 @@ class PeopleInRoomObject(BaseModel):
         orm_mode = True
 
 class Update_RoomObject(BaseModel):
-    room_size:int
-    measurement_unit:str
+    room_size:Optional[int]=None
+    measurement_unit:Optional[str]=None
     class Config:
         orm_mode = True
 
@@ -48,7 +48,7 @@ class Lights_Object(BaseModel):
         orm_mode = True
 
 class Update_LightObject(BaseModel):
-    name: str
+    name: Optional[str]=None
     class Config:
         orm_mode = True
 

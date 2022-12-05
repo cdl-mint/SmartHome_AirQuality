@@ -13,7 +13,7 @@ from databases import Database
 from schema import UserDetails,Room,PeopleInRoom,Light, Light_Operation, Power_Plug, Power_Plug_Operation,Airqualityproperty
 from fastAPI_models import UserInfoBase,UserCreate,Token,UserAuthenticate,Room_Object, Update_RoomObject, Lights_Object, Light_Operation_Object, Light_Operation_Return_Object, Update_LightObject, Time_Query_Object, Light_Operation_Storing_Object, Power_Plug_Object, Power_Plug_Update_Object, Power_Plug_Operation_Object, Power_Plug_Storing_Object,AirQuality_Properties_Object,AirQuality_Co2_Object,AirQuality_Temperature_Object,AirQuality_Humidity_Object,PeopleInRoomObject,Light_Activation_Object
 from typing import List,Union
-from sqlalchemy import and_, text
+from sqlalchemy import and_, text,update
 from publisher import publish_message
 from passlib.context import CryptContext
 import bcrypt
@@ -178,15 +178,20 @@ async def get_PeopleCount_Details(room_id: str):
     "room_size": 55,
     "room_name": "Living room changed"
     }"""
-@app.put("/Rooms/{room_id}",tags=["Rooms"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+   
+@app.patch("/Rooms/{room_id}",tags=["Rooms"],response_model=Update_RoomObject,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
 async def update_RoomDetails(room_id: str, request: Update_RoomObject):
-    updateRoomDetail = db_Session.query(Room).filter(Room.room_id == room_id)
-    if not updateRoomDetail.first():
+    updateRoomDetail = db_Session.query(Room).filter(Room.room_id == room_id).first()
+    if not updateRoomDetail:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Room with the id {room_id} is not available')
-    updateRoomDetail.update({'room_size': request.room_size, 'measurement_unit':request.measurement_unit})
+    room_data = request.dict(exclude_unset=True)
+    for key, value in room_data.items():
+            setattr(updateRoomDetail, key, value)
+    db_Session.add(updateRoomDetail)
     db_Session.commit()
-    return {"code": "success", "message": "updated room"}
+    db_Session.refresh(updateRoomDetail)    
+    return updateRoomDetail
 
 """Deletes a room with a certain room_id or returns an error if the room does not exist"""
 @app.delete("/Rooms/{room_id}",tags=["Rooms"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
@@ -241,20 +246,24 @@ async def get_Specific_Light(room_id: str, light_id: str):
    {
     "name": "Led Strip changed"
     }"""
-@app.put("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.patch("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"],response_model=Update_LightObject,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
 async def update_light(room_id: str, light_id: str, request: Update_LightObject):
-    updateLight = db_Session.query(Light).filter(Light.room_id == room_id, Light.light_id == light_id)
-    if not updateLight.first():
+    updateLight = db_Session.query(Light).filter(Light.room_id == room_id, Light.light_id == light_id).first()
+    if not updateLight:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Light with the id {light_id} is not available in room {room_id}')
-    updateLight.update({'name': request.name})
+    light_data = request.dict(exclude_unset=True)
+    for key, value in light_data.items():
+            setattr(updateLight, key, value)
+    db_Session.add(updateLight)
     db_Session.commit()
+    db_Session.refresh(updateLight)   
     return updateLight
 
 """Deletes a specific light in a room or returns an error if the light does not exist in the room"""
 @app.delete("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
 async def delete_light(room_id: str, light_id: str):
-    deleteLight = db_Session.query(Light).filter(Light.room_id == room_id, Light.light_id == light_id).one()
+    deleteLight = db_Session.query(Light).filter(Light.room_id == room_id, Light.light_id == light_id).first()
     if not deleteLight:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Light with the id {light_id} is not available in room {room_id}')
@@ -282,12 +291,11 @@ async def activate_Light(room_id: str, light_id: str,operation: Light_Activation
 @app.get("/Rooms/{room_id}/Lights/{light_id}/Activation",tags=["Lights"],response_model=List[Light_Operation_Return_Object],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
 async def activate_Light(room_id: str, light_id: str):
     getLightDetails = db_Session.query(Light_Operation).filter(
-        Light.room_id == room_id, Light.light_id == light_id)
-    if not getLightDetails.all():
+        Light.room_id == room_id, Light.light_id == light_id).all()
+    if not getLightDetails:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Light with the id {light_id} is not available in room {room_id}')
-    else:
-     return getLightDetails
+    return getLightDetails
 
 # Light set color
 """Changes the settings of a light via a Light Operation Objects."""
@@ -370,17 +378,21 @@ async def get_Specific_Light(room_id: str, plug_id: str):
 {
     "name": "Plug 1 changed"
 }"""
-@app.put("/Rooms/{room_id}/Ventilators/{plug_id}",tags=["Ventilators"], response_model=Power_Plug_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.patch("/Rooms/{room_id}/Ventilators/{plug_id}",tags=["Ventilators"], response_model=Power_Plug_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
 async def update_power_plug(room_id: str, plug_id: str, request: Power_Plug_Update_Object):
     
     updatePowerPlug = db_Session.query(Power_Plug).filter(
-        Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id)
+        Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id).first()
         
-    if not updatePowerPlug.first():
+    if not updatePowerPlug:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Plug with the id {plug_id} is not available in room {room_id}')
-    updatePowerPlug.update({'name': request.name})
+    plug_data = request.dict(exclude_unset=True)
+    for key, value in plug_data.items():
+            setattr(updatePowerPlug, key, value)
+    db_Session.add(updatePowerPlug)
     db_Session.commit()
+    db_Session.refresh(updatePowerPlug) 
     return updatePowerPlug
 
 """Deletes a specific power plug  in a room or returns an error if the power plug does not exist in the room"""
@@ -388,7 +400,7 @@ async def update_power_plug(room_id: str, plug_id: str, request: Power_Plug_Upda
 async def delete_power_plug(room_id: str, plug_id: str):
     
     deletePowerPlug = db_Session.query(Power_Plug).filter(
-        Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id).one()
+        Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id).first()
         
     if not deletePowerPlug:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -396,7 +408,7 @@ async def delete_power_plug(room_id: str, plug_id: str):
     db_Session.delete(deletePowerPlug)
     db_Session.commit()
     delete_from_json(plug_id)
-    return {"code": "success", "message": f"deleted light with id {plug_id} from room {room_id}"}
+    return {"code": "success", "message": f"deleted ventilator with id {plug_id} from room {room_id}"}
 
 # Ventilators Operations
 
@@ -441,12 +453,11 @@ async def activate_Power_Plug(room_id: str, plug_id: str):
 @app.get("/Rooms/{room_id}/Ventilators/{plug_id}/Activation",tags=["Ventilators"],response_model=List[Power_Plug_Operation_Object],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
 async def ventilator_Details(room_id: str, plug_id: str):
     getVentilatorDetails = db_Session.query(Power_Plug_Operation).filter(
-        Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id)
-    if not getVentilatorDetails.all():
+        Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id).all()
+    if not getVentilatorDetails:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Ventilator with the id {plug_id} is not available in room {room_id}')
-    else:
-     return getVentilatorDetails
+    return getVentilatorDetails
 
 #**Helper Methods**
 
