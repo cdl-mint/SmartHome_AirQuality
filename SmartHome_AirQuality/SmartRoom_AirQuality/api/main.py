@@ -10,12 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from session import db_Session,settings
 from databases import Database
-from schema import UserDetails,Room,PeopleInRoom,Light, Light_Operation, Power_Plug, Power_Plug_Operation,Airqualityproperty
-from fastAPI_models import UserInfoBase,UserCreate,Token,UserAuthenticate,Room_Object, Update_RoomObject, Lights_Object, Light_Operation_Object, Light_Operation_Return_Object, Update_LightObject, Time_Query_Object, Light_Operation_Storing_Object, Power_Plug_Object, Power_Plug_Update_Object, Power_Plug_Operation_Object, Power_Plug_Storing_Object,AirQuality_Properties_Object,AirQuality_Co2_Object,AirQuality_Temperature_Object,AirQuality_Humidity_Object,PeopleInRoomObject,Light_Activation_Object
+from schema import UserDetails,DigitalTwins,Room,PeopleInRoom,Light, Light_Operation, Power_Plug, Power_Plug_Operation,Airqualityproperty
+from fastAPI_models import UserInfoBase,UserCreate,Token,UserAuthenticate,DigitalTwin_Object,Room_Object, Update_RoomObject, Lights_Object, Light_Operation_Object, Light_Operation_Return_Object, Update_LightObject, Time_Query_Object, Light_Operation_Storing_Object, Power_Plug_Object, Power_Plug_Update_Object, Power_Plug_Operation_Object, Power_Plug_Storing_Object,AirQuality_Properties_Object,AirQuality_Co2_Object,AirQuality_Temperature_Object,AirQuality_Humidity_Object,PeopleInRoomObject,Light_Activation_Object
 from typing import List,Union
 from sqlalchemy import and_, text,update
 from publisher import publish_message
 from passlib.context import CryptContext
+from fastapi_pagination import Page, paginate, add_pagination
 import bcrypt
 import auth
 # to get a string like this run:
@@ -29,7 +30,10 @@ tags_metadata = [
          "name": "Users",
         "description": "CRUD operations on room",
     },
-
+    {
+        "name": "DT",
+        "description": "CRUD operations on digital twins",
+    },
     {
         "name": "Rooms",
         "description": "CRUD operations on room",
@@ -73,6 +77,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+add_pagination(app)
+
 @app.post("/users/register", status_code=201, response_model=UserInfoBase, tags=["Users"])
 def register_user(user: UserCreate):
     db_user = get_user_by_username(username=user.username)
@@ -112,6 +118,27 @@ def authenticate_user(user: UserAuthenticate):
                 data={"sub": user.username}, expires_delta=access_token_expires)
             return {"access_token": access_token, "token_type": "Bearer"}
 
+#DT's
+@app.post("/DigitalTwin", tags=["DT"], response_model=DigitalTwin_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_201_CREATED)
+async def add_DT(addDT: DigitalTwin_Object):
+    db_classes = DigitalTwins(dt_id=addDT.dt_id,dt_type=addDT.dt_type)
+    try:
+        db_Session.add(db_classes)
+        db_Session.flush()
+        db_Session.commit()
+    except Exception as ex:
+        logger.error(f"{ex.__class__.__name__}: {ex}")
+        db_Session.rollback()
+    return addDT
+
+"""Returns all the dt's present in the database"""
+@app.get("/DigitalTwins", tags=["DT"],response_model=List[DigitalTwin_Object], status_code=status.HTTP_200_OK,dependencies=[Depends(auth.JWTBearer())])
+async def get_All_DTs():
+    results = db_Session.query(DigitalTwins).all()
+    if not results:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f'No twins are available')
+    else: 
+        return results
 # Rooms
 """Creates a new room in the database and returns the room on success. Room_id needs to be unique"""
 """Example room object 
@@ -497,41 +524,41 @@ async def add_AirQuality_Properties(addAirQuality:AirQuality_Properties_Object):
         db_Session.rollback()
     return addAirQuality
 
-@app.get("/Room/{room_id}/AirQuality/",tags=["AirQuality"], response_model=AirQuality_Properties_Object,dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/",tags=["AirQuality"], response_model=Page[AirQuality_Properties_Object],dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Rooms(room_id:str):
     filteredAQPResults= db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
-    AQPresults=filteredAQPResults.order_by(Airqualityproperty.time.desc()).first()
+    AQPresults=filteredAQPResults.all()
     if not AQPresults:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f'No air quality measurements available for the room {room_id}')
     else:
-        return AQPresults
+        return paginate(AQPresults)
     
-@app.get("/Room/{room_id}/AirQuality/temperature/",tags=["AirQuality"], response_model=AirQuality_Temperature_Object,dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/temperature/",tags=["AirQuality"], response_model=Page[AirQuality_Temperature_Object],dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Temperature(room_id:str):
     filteredAQTResults= db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
-    AQPTemperature=filteredAQTResults.order_by(Airqualityproperty.time.desc()).first()
+    AQPTemperature=filteredAQTResults.all()
     if not AQPTemperature:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f'No temperature data available for room id {room_id}')
     else:
-        return AQPTemperature
+        return paginate(AQPTemperature)
 
-@app.get("/Room/{room_id}/AirQuality/humidity/",tags=["AirQuality"], response_model=AirQuality_Humidity_Object,dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/humidity/",tags=["AirQuality"], response_model=Page[AirQuality_Humidity_Object],dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Humidity(room_id:str):
     filteredAQHResults=db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
-    AQPHumidity=filteredAQHResults.order_by(Airqualityproperty.time.desc()).first()
+    AQPHumidity=filteredAQHResults.all()
     if not AQPHumidity:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f'No humidity data available for room id {room_id}')
     else:
-        return AQPHumidity
+        return paginate(AQPHumidity)
 
-@app.get("/Room/{room_id}/AirQuality/co2/",tags=["AirQuality"], response_model=AirQuality_Co2_Object,dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/co2/",tags=["AirQuality"], response_model=Page[AirQuality_Co2_Object],dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Co2(room_id:str):
     filteredAQCo2Results=db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
-    AQPCo2=filteredAQCo2Results.order_by(Airqualityproperty.time.desc()).first()
+    AQPCo2=filteredAQCo2Results.all()
     if not AQPCo2:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f'No co2 data available for room id {room_id}')
     else:
-     return AQPCo2    
+     return paginate(AQPCo2)   
 
 # Doors
 @app.post("/Rooms/{room_id}/Doors/", tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)

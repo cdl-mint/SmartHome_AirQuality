@@ -12,6 +12,11 @@ class UserDetails(Base):
     username = Column(String, primary_key=True)
     user_password = Column(String)
     
+class DigitalTwins(Base):
+    __tablename__ = "digital_twins"
+    
+    dt_id = Column(String, primary_key=True)
+    dt_type = Column(String)
 
 class Room(Base):
     __tablename__ = 'room'

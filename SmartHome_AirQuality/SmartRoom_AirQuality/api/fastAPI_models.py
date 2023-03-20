@@ -20,6 +20,10 @@ class UserInfoBase(BaseModel):
 class UserCreate(UserInfoBase):
     password: str
 
+#DTs
+class DigitalTwin_Object(BaseModel):
+    dt_id:str
+    dt_type: str   
     
 #Smart_Room
 class Room_Object(BaseModel):

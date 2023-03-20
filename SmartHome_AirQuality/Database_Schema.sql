@@ -2,17 +2,23 @@ CREATE TABLE User_Details(
 	username varchar PRIMARY KEY NOT NULL,
 	user_password varchar NOT NULL
 );
+CREATE TABLE Digital_Twins(
+	dt_id varchar PRIMARY KEY NOT NULL,
+	dt_type varchar NOT NULL
+);
 CREATE TABLE Room(
-	room_Id varchar PRIMARY KEY NOT NULL,
+	room_Id varchar NOT NULL,
 	room_Size int NOT NULL,
-	measurement_Unit varchar NOT NULL
+	measurement_Unit varchar NOT NULL,
+	PRIMARY KEY (room_Id, room_Size),
+	FOREIGN KEY (room_Id) REFERENCES Digital_Twins (dt_id)
 );
 
 CREATE TABLE PeopleInRoom(
 	room_Id varchar NOT NULL,
     people_count int NOT NULL,
 	PRIMARY KEY (room_Id, people_count),
-	FOREIGN KEY (room_Id) REFERENCES Room (room_Id)
+	FOREIGN KEY (room_Id) REFERENCES Digital_Twins (dt_id)
 );
 
 CREATE TABLE AirQualityProperties(
@@ -26,7 +32,7 @@ CREATE TABLE AirQualityProperties(
 	humidity float NOT NULL,
 	humidityMeasurementUnit varchar NOT NULL,
 	time timestamp with time zone PRIMARY KEY NOT NULL,
-	FOREIGN KEY (room_Id) REFERENCES Room (room_Id)
+	FOREIGN KEY (room_Id) REFERENCES Digital_Twins (dt_id)
 );
 
 CREATE TABLE Light(
@@ -34,7 +40,7 @@ CREATE TABLE Light(
 	light_id varchar NOT NULL,
 	name varchar NOT NULL,
 	PRIMARY KEY (room_id, light_id),
-	FOREIGN KEY (room_id) REFERENCES Room (room_id)
+	FOREIGN KEY (room_id) REFERENCES Digital_Twins (dt_id)
 	ON DELETE CASCADE
 );
 
@@ -60,7 +66,7 @@ CREATE TABLE Power_Plug(
 	plug_Id varchar NOT NULL,
 	name varchar NOT NULL,
 	PRIMARY KEY (room_Id, plug_Id),
-	FOREIGN KEY (room_Id) REFERENCES Room (room_Id)
+	FOREIGN KEY (room_Id) REFERENCES Digital_Twins (dt_id)
 	ON DELETE CASCADE
 );
 
