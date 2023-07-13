@@ -1,4 +1,4 @@
-# SmartHomeOperations_AirQuality
+# SmartHome_AirQuality
 
 #### UseCase: SmartRoom_AirQuality
 
