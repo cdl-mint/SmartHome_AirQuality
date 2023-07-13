@@ -16,30 +16,33 @@ class DigitalTwins(Base):
     __tablename__ = "digital_twins"
     
     dt_id = Column(String, primary_key=True)
-    dt_type = Column(String)
-
+    dt_type = Column(String, nullable=False)
+    dt_location=Column(String, nullable=False)
+    dt_active_status=Column(Boolean, nullable=False)
+    dt_capability=Column(String, nullable=False)
+    
 class Room(Base):
     __tablename__ = 'room'
 
-    room_id = Column(String, primary_key=True)
+    room_id = Column(ForeignKey('digital_twins.dt_id'), primary_key=True)
     room_size = Column(Integer, nullable=False)
     measurement_unit = Column(String, nullable=False)
 
 class PeopleInRoom(Base):
     __tablename__ = 'peopleinroom'
-    room_id = Column(ForeignKey('room.room_id'), primary_key=True)
+    room_id = Column(ForeignKey('digital_twins.dt_id'), primary_key=True)
     people_count = Column(Integer, primary_key = True)
 	
-    room = relationship('Room')
+    digital_twins = relationship('DigitalTwins')
 
 class Light(Base):
     __tablename__ = 'light'
 
-    room_id = Column(ForeignKey('room.room_id'), primary_key=True)
+    room_id = Column(ForeignKey('digital_twins.dt_id'), primary_key=True)
     light_id = Column(String, primary_key = True)
     name = Column(String, nullable=False) 
     
-    room = relationship('Room')
+    digital_twins = relationship('DigitalTwins')
 
 class Light_Operation(Base):
     __tablename__ = "light_operation"
@@ -60,11 +63,11 @@ class Light_Operation(Base):
 class Power_Plug(Base):
     __tablename__ = 'power_plug'
 
-    room_id = Column(ForeignKey('room.room_id'), primary_key=True)
+    room_id = Column(ForeignKey('digital_twins.dt_id'), primary_key=True)
     plug_id = Column(String, primary_key=True)
     name = Column(String, nullable = False)
 
-    room = relationship('Room')
+    digital_twins = relationship('DigitalTwins')
 
 class Power_Plug_Operation(Base):
     __tablename__ = "power_plug_operation"
@@ -82,7 +85,7 @@ class Power_Plug_Operation(Base):
 class Airqualityproperty(Base):
     __tablename__ = 'airqualityproperties'
 
-    room_id = Column(ForeignKey('room.room_id'), nullable=False)
+    room_id = Column(ForeignKey('digital_twins.dt_id'), nullable=False)
     device_id = Column(String, nullable=False)
     ventilator = Column(String, nullable=False)
     co2 = Column(Float(53), nullable=False)
@@ -93,4 +96,4 @@ class Airqualityproperty(Base):
     humiditymeasurementunit = Column(String, nullable=False)
     time = Column(DateTime, primary_key=True)
 
-    room = relationship('Room')
+    digital_twins = relationship('DigitalTwins')

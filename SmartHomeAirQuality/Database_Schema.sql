@@ -1,10 +1,9 @@
-CREATE TABLE User_Details(
-	username varchar PRIMARY KEY NOT NULL,
-	user_password varchar NOT NULL
-);
 CREATE TABLE Digital_Twins(
 	dt_id varchar PRIMARY KEY NOT NULL,
-	dt_type varchar NOT NULL
+	dt_type varchar NOT NULL,
+	dt_location varchar NOT NULL,
+	dt_active_status BOOLEAN NOT NULL,
+	dt_capability varchar NOT NULL
 );
 CREATE TABLE Room(
 	room_Id varchar NOT NULL,
@@ -12,18 +11,20 @@ CREATE TABLE Room(
 	measurement_Unit varchar NOT NULL,
 	PRIMARY KEY (room_Id, room_Size),
 	FOREIGN KEY (room_Id) REFERENCES Digital_Twins (dt_id)
+        ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE PeopleInRoom(
 	room_Id varchar NOT NULL,
-    people_count int NOT NULL,
+        people_count int NOT NULL,
 	PRIMARY KEY (room_Id, people_count),
 	FOREIGN KEY (room_Id) REFERENCES Digital_Twins (dt_id)
+	ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE AirQualityProperties(
 	room_Id varchar  NOT NULL,
-    device_id varchar  NOT NULL,
+        device_id varchar  NOT NULL,
 	ventilator varchar NOT NULL,
 	co2 float NOT NULL,
 	co2MeasurementUnit varchar NOT NULL,
@@ -33,6 +34,7 @@ CREATE TABLE AirQualityProperties(
 	humidityMeasurementUnit varchar NOT NULL,
 	time timestamp with time zone PRIMARY KEY NOT NULL,
 	FOREIGN KEY (room_Id) REFERENCES Digital_Twins (dt_id)
+	ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE Light(

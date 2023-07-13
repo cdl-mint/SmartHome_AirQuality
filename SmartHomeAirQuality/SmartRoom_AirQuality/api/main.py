@@ -1,4 +1,5 @@
 from ast import And
+from enum import Enum
 import json
 import os
 from asyncio.log import logger
@@ -11,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from session import db_Session,settings
 from databases import Database
 from schema import UserDetails,DigitalTwins,Room,PeopleInRoom,Light, Light_Operation, Power_Plug, Power_Plug_Operation,Airqualityproperty
-from fastAPI_models import UserInfoBase,UserCreate,Token,UserAuthenticate,DigitalTwin_Object,Room_Object, Update_RoomObject, Lights_Object, Light_Operation_Object, Light_Operation_Return_Object, Update_LightObject, Time_Query_Object, Light_Operation_Storing_Object, Power_Plug_Object, Power_Plug_Update_Object, Power_Plug_Operation_Object, Power_Plug_Storing_Object,AirQuality_Properties_Object,AirQuality_Co2_Object,AirQuality_Temperature_Object,AirQuality_Humidity_Object,PeopleInRoomObject,Light_Activation_Object
+from fastAPI_models import UserInfoBase,UserCreate,Token,UserAuthenticate,DigitalTwin_Object,Update_DigitalTwinObject,Room_Object, Update_RoomObject, Lights_Object, Light_Operation_Object, Light_Operation_Return_Object, Update_LightObject, Time_Query_Object, Light_Operation_Storing_Object, Power_Plug_Object, Power_Plug_Update_Object, Power_Plug_Operation_Object, Power_Plug_Storing_Object,AirQuality_Properties_Object,AirQuality_Co2_Object,AirQuality_Temperature_Object,AirQuality_Humidity_Object,PeopleInRoomObject,Light_Activation_Object
 from typing import List,Union
 from sqlalchemy import and_, text,update
 from publisher import publish_message
@@ -26,14 +27,11 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 tags_metadata = [
-    {
-         "name": "Users",
-        "description": "CRUD operations on room",
-    },
-    {
-        "name": "DT",
-        "description": "CRUD operations on digital twins",
-    },
+  {
+    "name":"DT",
+    "description":"Create and manage digital twins with its capabilities"
+  },
+
     {
         "name": "Rooms",
         "description": "CRUD operations on room",
@@ -68,8 +66,7 @@ tags_metadata = [
 #oauth2_scheme=OAuth2PasswordBearer(tokenUrl="token")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-app = FastAPI(title=settings.PROJECT_NAME,version=settings.PROJECT_VERSION, openapi_tags=tags_metadata)
-
+app = FastAPI(title=settings.PROJECT_NAME,version=settings.PROJECT_VERSION, openapi_tags=tags_metadata, root_path="/smartroomairquality-test")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -78,50 +75,10 @@ app.add_middleware(
     allow_headers=["*"]
 )
 add_pagination(app)
-
-@app.post("/users/register", status_code=201, response_model=UserInfoBase, tags=["Users"])
-def register_user(user: UserCreate):
-    db_user = get_user_by_username(username=user.username)
-    if db_user:
-        raise HTTPException(status_code=409, detail="Username already registered")
-    return create_user(user=user)
-
-def get_user_by_username(username: str):
-    return db_Session.query(UserDetails).filter(UserDetails.username == username).first()
-
-def create_user( user: UserCreate):
-    hashed_password = bcrypt.hashpw(user.password.encode('utf8'), bcrypt.gensalt())
-    hashed_password = hashed_password.decode('utf8')
-    db_user = UserDetails(username=user.username, user_password=hashed_password)
-    try:
-        db_Session.add(db_user)
-        db_Session.flush()
-        db_Session.commit()
-    except Exception as ex:
-        logger.error(f"{ex.__class__.__name__}: {ex}")
-        db_Session.rollback()
-    return db_user
-
-@app.post("/users/authenticate", response_model=Token, tags=["Users"])
-def authenticate_user(user: UserAuthenticate):
-    db_user = get_user_by_username(username=user.username)
-    if db_user is None:
-        raise HTTPException(status_code=403, detail="Username is incorrect")
-    else:
-        is_password_correct = auth.check_username_password(user)
-        if is_password_correct is False:
-            raise HTTPException(status_code=403, detail="password is incorrect")
-        else:
-            from datetime import timedelta
-            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-            access_token = auth.encode_jwt_token(
-                data={"sub": user.username}, expires_delta=access_token_expires)
-            return {"access_token": access_token, "token_type": "Bearer"}
-
 #DT's
-@app.post("/DigitalTwin", tags=["DT"], response_model=DigitalTwin_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_201_CREATED)
+@app.post("/DigitalTwin", tags=["DT"], response_model=DigitalTwin_Object, status_code=status.HTTP_201_CREATED)
 async def add_DT(addDT: DigitalTwin_Object):
-    db_classes = DigitalTwins(dt_id=addDT.dt_id,dt_type=addDT.dt_type)
+    db_classes = DigitalTwins(dt_id=addDT.dt_id,dt_type=addDT.dt_type,dt_location=addDT.dt_location, dt_active_status=addDT.dt_active_status,dt_capability=addDT.dt_capability)
     try:
         db_Session.add(db_classes)
         db_Session.flush()
@@ -132,13 +89,40 @@ async def add_DT(addDT: DigitalTwin_Object):
     return addDT
 
 """Returns all the dt's present in the database"""
-@app.get("/DigitalTwins", tags=["DT"],response_model=List[DigitalTwin_Object], status_code=status.HTTP_200_OK,dependencies=[Depends(auth.JWTBearer())])
+@app.get("/DigitalTwins", tags=["DT"],response_model=List[DigitalTwin_Object], status_code=status.HTTP_200_OK)
 async def get_All_DTs():
     results = db_Session.query(DigitalTwins).all()
     if not results:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f'No twins are available')
     else: 
         return results
+
+@app.patch("/DigitalTwins/{dt_id}",tags=["DT"],response_model=Update_DigitalTwinObject,status_code=status.HTTP_200_OK)
+async def update_RoomDetails(dt_id: str, request: Update_DigitalTwinObject):
+    updateDTDetail = db_Session.query(DigitalTwins).filter(DigitalTwins.dt_id == dt_id).first()
+    if not updateDTDetail:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Digital twin with the id {dt_id} is not available')
+    dt_data = request.dict(exclude_unset=True)
+    for key, value in dt_data.items():
+            setattr(updateDTDetail, key, value)
+    db_Session.add(updateDTDetail)
+    db_Session.commit()
+    db_Session.refresh(updateDTDetail)    
+    return updateDTDetail
+
+"""Deletes a dt with a certain dt_id or returns an error if the dt does not exist"""
+@app.delete("/DigitalTwins/{dt_id}",tags=["DT"], status_code=status.HTTP_200_OK)
+async def delete_DT(dt_id: str):
+    deleteDT = db_Session.query(DigitalTwins).filter(DigitalTwins.dt_id == dt_id).first()
+    if not deleteDT:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Digital twin with the id {dt_id} is not found')
+    db_Session.delete(deleteDT)
+    db_Session.commit()
+    return {"code": "success", "message": f"deleted dt with id {dt_id}"}
+
+
 # Rooms
 """Creates a new room in the database and returns the room on success. Room_id needs to be unique"""
 """Example room object 
@@ -147,7 +131,7 @@ async def get_All_DTs():
     "room_size": 50,
     "measurement_unit":"50 sq.m"
 }"""
-@app.post("/Rooms", tags=["Rooms"], response_model=Room_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_201_CREATED)
+@app.post("/Rooms", tags=["Rooms"], response_model=Room_Object, status_code=status.HTTP_201_CREATED)
 async def add_Room(addRoom: Room_Object):
     db_classes = Room(room_id=addRoom.room_id,room_size=addRoom.room_size, measurement_unit=addRoom.measurement_unit)
     try:
@@ -160,7 +144,7 @@ async def add_Room(addRoom: Room_Object):
     return addRoom
 
 """Returns all the rooms present in the database"""
-@app.get("/Rooms", tags=["Rooms"],response_model=List[Room_Object], status_code=status.HTTP_200_OK,dependencies=[Depends(auth.JWTBearer())])
+@app.get("/Rooms", tags=["Rooms"],response_model=List[Room_Object], status_code=status.HTTP_200_OK)
 async def get_AllRoom_Details():
     results = db_Session.query(Room).all()
     if not results:
@@ -169,7 +153,7 @@ async def get_AllRoom_Details():
         return results
 
 """Returns a room with a certain room_id or an error if the room does not exist"""
-@app.get("/Rooms/{room_id}",tags=["Rooms"],response_model=Room_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}",tags=["Rooms"],response_model=Room_Object, status_code=status.HTTP_200_OK)
 async def get_Specific_Room(room_id: str):
     specificRoomDetail = db_Session.query(Room).filter(Room.room_id == room_id).first()
     if not specificRoomDetail:
@@ -178,7 +162,7 @@ async def get_Specific_Room(room_id: str):
         return specificRoomDetail
 
 """ Add number of people in room """
-@app.post("/Rooms/{room_id}/PeopleInRoom",tags=["Rooms"], response_model=PeopleInRoomObject,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_201_CREATED)
+@app.post("/Rooms/{room_id}/PeopleInRoom",tags=["Rooms"], response_model=PeopleInRoomObject, status_code=status.HTTP_201_CREATED)
 async def add_People_Room(room_id: str,addPeopleRoom: PeopleInRoomObject):
     db_classes = PeopleInRoom(room_id=room_id,people_count=addPeopleRoom.people_count)
     try:
@@ -191,7 +175,7 @@ async def add_People_Room(room_id: str,addPeopleRoom: PeopleInRoomObject):
     return addPeopleRoom
 
 """Returns people count in room"""
-@app.get("/Rooms/{room_id}/PeopleInRoom",tags=["Rooms"],response_model=PeopleInRoomObject,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/PeopleInRoom",tags=["Rooms"],response_model=PeopleInRoomObject,status_code=status.HTTP_200_OK)
 async def get_PeopleCount_Details(room_id: str):
     peoplecount = db_Session.query(PeopleInRoom).filter(PeopleInRoom.room_id==room_id).first()
     if not peoplecount:
@@ -206,7 +190,7 @@ async def get_PeopleCount_Details(room_id: str):
     "room_name": "Living room changed"
     }"""
    
-@app.patch("/Rooms/{room_id}",tags=["Rooms"],response_model=Update_RoomObject,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.patch("/Rooms/{room_id}",tags=["Rooms"],response_model=Update_RoomObject,status_code=status.HTTP_200_OK)
 async def update_RoomDetails(room_id: str, request: Update_RoomObject):
     updateRoomDetail = db_Session.query(Room).filter(Room.room_id == room_id).first()
     if not updateRoomDetail:
@@ -221,7 +205,7 @@ async def update_RoomDetails(room_id: str, request: Update_RoomObject):
     return updateRoomDetail
 
 """Deletes a room with a certain room_id or returns an error if the room does not exist"""
-@app.delete("/Rooms/{room_id}",tags=["Rooms"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.delete("/Rooms/{room_id}",tags=["Rooms"], status_code=status.HTTP_200_OK)
 async def delete_Room(room_id: str):
     deleteRoom = db_Session.query(Room).filter(Room.room_id == room_id).first()
     if not deleteRoom:
@@ -238,7 +222,7 @@ async def delete_Room(room_id: str):
     "light_id": "0x804b50fffeb72fd9",
     "name": "Led Strip"
 }"""
-@app.post("/Rooms/{room_id}/Lights", tags=["Lights"],dependencies=[Depends(auth.JWTBearer())], response_model=Lights_Object, status_code=status.HTTP_201_CREATED)
+@app.post("/Rooms/{room_id}/Lights", tags=["Lights"], response_model=Lights_Object, status_code=status.HTTP_201_CREATED)
 async def add_light(room_id: str, addLight: Lights_Object):
     addLight = Light(room_id=room_id, light_id=addLight.light_id, name=addLight.name)
     try:
@@ -252,14 +236,14 @@ async def add_light(room_id: str, addLight: Lights_Object):
     return addLight
 
 """Returns all the lights in a room"""
-@app.get("/Rooms/{room_id}/Lights",tags=["Lights"], response_model=List[Lights_Object],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Lights",tags=["Lights"], response_model=List[Lights_Object],status_code=status.HTTP_200_OK)
 async def get_All_Lights(room_id: str):
     getAllLights = db_Session.query(Light).filter(Light.room_id == room_id).all()
     return getAllLights
 
 
 """Returns a specific light in a room or an error if the light does not exist in the room"""
-@app.get("/Rooms/{room_id}/Lights/{light_id}/",tags=["Lights"], response_model=Lights_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Lights/{light_id}/",tags=["Lights"], response_model=Lights_Object, status_code=status.HTTP_200_OK)
 async def get_Specific_Light(room_id: str, light_id: str):
     getSpecificLight = db_Session.query(Light).filter(Light.room_id == room_id, Light.light_id == light_id).first()
     if not getSpecificLight:
@@ -273,7 +257,7 @@ async def get_Specific_Light(room_id: str, light_id: str):
    {
     "name": "Led Strip changed"
     }"""
-@app.patch("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"],response_model=Update_LightObject,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.patch("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"],response_model=Update_LightObject, status_code=status.HTTP_200_OK)
 async def update_light(room_id: str, light_id: str, request: Update_LightObject):
     updateLight = db_Session.query(Light).filter(Light.room_id == room_id, Light.light_id == light_id).first()
     if not updateLight:
@@ -288,7 +272,7 @@ async def update_light(room_id: str, light_id: str, request: Update_LightObject)
     return updateLight
 
 """Deletes a specific light in a room or returns an error if the light does not exist in the room"""
-@app.delete("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.delete("/Rooms/{room_id}/Lights/{light_id}",tags=["Lights"], status_code=status.HTTP_200_OK)
 async def delete_light(room_id: str, light_id: str):
     deleteLight = db_Session.query(Light).filter(Light.room_id == room_id, Light.light_id == light_id).first()
     if not deleteLight:
@@ -302,7 +286,7 @@ async def delete_light(room_id: str, light_id: str):
 #  Lights Activation
 """Toggles a light in a room with a specific light_id"""
 """does not contain a body"""
-@app.post("/Rooms/{room_id}/Lights/{light_id}/Activation",tags=["Lights"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.post("/Rooms/{room_id}/Lights/{light_id}/Activation",tags=["Lights"], status_code=status.HTTP_200_OK)
 async def activate_Light(room_id: str, light_id: str,operation: Light_Activation_Object):
     data = {}
     #data["state"] = "TOGGLE"
@@ -315,7 +299,7 @@ async def activate_Light(room_id: str, light_id: str,operation: Light_Activation
     return {"code": "success", "message": "Device toggled"}
 
 """ Get the details of when the light is turned on/off """
-@app.get("/Rooms/{room_id}/Lights/{light_id}/Activation",tags=["Lights"],response_model=List[Light_Operation_Return_Object],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Lights/{light_id}/Activation",tags=["Lights"],response_model=List[Light_Operation_Return_Object], status_code=status.HTTP_200_OK)
 async def activate_Light(room_id: str, light_id: str):
     getLightDetails = db_Session.query(Light_Operation).filter(
         Light.room_id == room_id, Light.light_id == light_id).all()
@@ -332,7 +316,7 @@ async def activate_Light(room_id: str, light_id: str):
     "brightness": 200,
     "color": {"hex":"#466bca"}
     }"""
-@app.post("/Rooms/{room_id}/Lights/{light_id}/SetColor",tags=["Lights"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.post("/Rooms/{room_id}/Lights/{light_id}/SetColor",tags=["Lights"],status_code=status.HTTP_200_OK)
 async def complex_setting_light(room_id: str, light_id: str, operation: Light_Operation_Object):
     def isValidHexCode(str):
         if (str[0] != '#'):
@@ -370,7 +354,7 @@ async def complex_setting_light(room_id: str, light_id: str, operation: Light_Op
     "plug_id": "0x804b50fffeb72fd9",
     "name": "Plug 1"
     }"""
-@app.post("/Rooms/{room_id}/Ventilators",tags=["Ventilators"], response_model=Power_Plug_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_201_CREATED)
+@app.post("/Rooms/{room_id}/Ventilators",tags=["Ventilators"], response_model=Power_Plug_Object,status_code=status.HTTP_201_CREATED)
 async def add_Power_Plug(room_id: str, addPowerPlug: Power_Plug_Object):
     addPowerPlug = Power_Plug(room_id=room_id, plug_id=addPowerPlug.plug_id, name=addPowerPlug.name)
     try:
@@ -384,13 +368,13 @@ async def add_Power_Plug(room_id: str, addPowerPlug: Power_Plug_Object):
     return addPowerPlug
 
 """Returns all the power plug in a room"""
-@app.get("/Rooms/{room_id}/Ventilators",tags=["Ventilators"], response_model=List[Power_Plug_Object],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Ventilators",tags=["Ventilators"], response_model=List[Power_Plug_Object], status_code=status.HTTP_200_OK)
 async def get_All_Power_Plugs(room_id: str):
     allPowerPlugs = db_Session.query(Power_Plug).filter(Power_Plug.room_id == room_id).all()
     return allPowerPlugs
 
 """Returns a specific power plug in a room or an error if the power plug does not exist in the room"""
-@app.get("/Rooms/{room_id}/Ventilators/{plug_id}", tags=["Ventilators"],response_model=Power_Plug_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Ventilators/{plug_id}", tags=["Ventilators"],response_model=Power_Plug_Object, status_code=status.HTTP_200_OK)
 async def get_Specific_Light(room_id: str, plug_id: str):
     getSpecificPowerPlug = db_Session.query(Power_Plug).filter(
         Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id).first()
@@ -405,7 +389,7 @@ async def get_Specific_Light(room_id: str, plug_id: str):
 {
     "name": "Plug 1 changed"
 }"""
-@app.patch("/Rooms/{room_id}/Ventilators/{plug_id}",tags=["Ventilators"], response_model=Power_Plug_Object,dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.patch("/Rooms/{room_id}/Ventilators/{plug_id}",tags=["Ventilators"], response_model=Power_Plug_Object, status_code=status.HTTP_200_OK)
 async def update_power_plug(room_id: str, plug_id: str, request: Power_Plug_Update_Object):
     
     updatePowerPlug = db_Session.query(Power_Plug).filter(
@@ -423,7 +407,7 @@ async def update_power_plug(room_id: str, plug_id: str, request: Power_Plug_Upda
     return updatePowerPlug
 
 """Deletes a specific power plug  in a room or returns an error if the power plug does not exist in the room"""
-@app.delete("/Rooms/{room_id}/Ventilators/{plug_id}",tags=["Ventilators"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.delete("/Rooms/{room_id}/Ventilators/{plug_id}",tags=["Ventilators"], status_code=status.HTTP_200_OK)
 async def delete_power_plug(room_id: str, plug_id: str):
     
     deletePowerPlug = db_Session.query(Power_Plug).filter(
@@ -447,7 +431,8 @@ async def delete_power_plug(room_id: str, plug_id: str):
 
 """Toggles a power plug(ventilator) in a room with a specific plug_id"""
 """does not contain a body"""
-@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Operations",tags=["Ventilators"],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+"""
+@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Operations",tags=["Ventilators"],status_code=status.HTTP_200_OK)
 async def activate_Power_Plug(room_id: str, plug_id: str,body: Power_Plug_Storing_Object):
    
     new_operation = Power_Plug_Operation(room_id=room_id, plug_id=plug_id, time=datetime.now(), turnon = body.turnon)
@@ -464,9 +449,10 @@ async def activate_Power_Plug(room_id: str, plug_id: str,body: Power_Plug_Storin
             logger.error(f"{ex.__class__.__name__}: {ex}")
             db_Session.rollback()
     return new_operation
+"""
 """Toggles a power plug in a room with a specific plug_id"""
 """does not contain a body"""
-@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Activation", tags=["Ventilators"],dependencies=[Depends(auth.JWTBearer())],status_code=status.HTTP_200_OK)
+@app.post("/Rooms/{room_id}/Ventilators/{plug_id}/Activation", tags=["Ventilators"],status_code=status.HTTP_200_OK)
 async def activate_Power_Plug(room_id: str, plug_id: str):
 
     data = {}
@@ -477,7 +463,7 @@ async def activate_Power_Plug(room_id: str, plug_id: str):
 
     return {"code": "success", "message": "Device toggled"}
 """ Get the details of when the Ventilator is turned on/off """
-@app.get("/Rooms/{room_id}/Ventilators/{plug_id}/Activation",tags=["Ventilators"],response_model=List[Power_Plug_Operation_Object],dependencies=[Depends(auth.JWTBearer())], status_code=status.HTTP_200_OK)
+@app.get("/Rooms/{room_id}/Ventilators/{plug_id}/Activation",tags=["Ventilators"],response_model=List[Power_Plug_Operation_Object],status_code=status.HTTP_200_OK)
 async def ventilator_Details(room_id: str, plug_id: str):
     getVentilatorDetails = db_Session.query(Power_Plug_Operation).filter(
         Power_Plug.room_id == room_id, Power_Plug.plug_id == plug_id).all()
@@ -510,7 +496,7 @@ def delete_from_json(device_key):
 
 #Air Quality APIs - airQualityinRoom
 
-@app.post("/Room/AirQuality/",tags=["AirQuality"], response_model=AirQuality_Properties_Object,dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_201_CREATED)
+@app.post("/Room/AirQuality/",tags=["AirQuality"], response_model=AirQuality_Properties_Object,status_code = status.HTTP_201_CREATED)
 async def add_AirQuality_Properties(addAirQuality:AirQuality_Properties_Object):
    
     db_AQP=Airqualityproperty(room_id=addAirQuality.room_id,device_id=addAirQuality.device_id,ventilator=addAirQuality.ventilator,co2=addAirQuality.co2,co2measurementunit=addAirQuality.co2measurementunit,temperature=addAirQuality.temperature,temperaturemeasurementunit=addAirQuality.temperaturemeasurementunit,humidity=addAirQuality.humidity,humiditymeasurementunit=addAirQuality.humiditymeasurementunit,time=addAirQuality.time)
@@ -524,7 +510,7 @@ async def add_AirQuality_Properties(addAirQuality:AirQuality_Properties_Object):
         db_Session.rollback()
     return addAirQuality
 
-@app.get("/Room/{room_id}/AirQuality/",tags=["AirQuality"], response_model=Page[AirQuality_Properties_Object],dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/",tags=["AirQuality"], response_model=Page[AirQuality_Properties_Object], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Rooms(room_id:str):
     filteredAQPResults= db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
     AQPresults=filteredAQPResults.all()
@@ -533,7 +519,7 @@ async def get_AirQuality_Rooms(room_id:str):
     else:
         return paginate(AQPresults)
     
-@app.get("/Room/{room_id}/AirQuality/temperature/",tags=["AirQuality"], response_model=Page[AirQuality_Temperature_Object],dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/temperature/",tags=["AirQuality"], response_model=Page[AirQuality_Temperature_Object], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Temperature(room_id:str):
     filteredAQTResults= db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
     AQPTemperature=filteredAQTResults.all()
@@ -542,7 +528,8 @@ async def get_AirQuality_Temperature(room_id:str):
     else:
         return paginate(AQPTemperature)
 
-@app.get("/Room/{room_id}/AirQuality/humidity/",tags=["AirQuality"], response_model=Page[AirQuality_Humidity_Object],dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
+
+@app.get("/Room/{room_id}/AirQuality/humidity/",tags=["AirQuality"], response_model=Page[AirQuality_Humidity_Object], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Humidity(room_id:str):
     filteredAQHResults=db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
     AQPHumidity=filteredAQHResults.all()
@@ -551,14 +538,14 @@ async def get_AirQuality_Humidity(room_id:str):
     else:
         return paginate(AQPHumidity)
 
-@app.get("/Room/{room_id}/AirQuality/co2/",tags=["AirQuality"], response_model=Page[AirQuality_Co2_Object],dependencies=[Depends(auth.JWTBearer())], status_code = status.HTTP_200_OK)
+@app.get("/Room/{room_id}/AirQuality/co2/",tags=["AirQuality"], response_model=Page[AirQuality_Co2_Object], status_code = status.HTTP_200_OK)
 async def get_AirQuality_Co2(room_id:str):
     filteredAQCo2Results=db_Session.query(Airqualityproperty).filter(Airqualityproperty.room_id==room_id)
     AQPCo2=filteredAQCo2Results.all()
     if not AQPCo2:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f'No co2 data available for room id {room_id}')
     else:
-     return paginate(AQPCo2)   
+     return paginate(AQPCo2)      
 
 # Doors
 @app.post("/Rooms/{room_id}/Doors/", tags=["Doors"], status_code=status.HTTP_501_NOT_IMPLEMENTED)

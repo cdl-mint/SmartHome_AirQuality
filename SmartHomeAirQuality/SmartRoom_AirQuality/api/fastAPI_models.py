@@ -23,8 +23,21 @@ class UserCreate(UserInfoBase):
 #DTs
 class DigitalTwin_Object(BaseModel):
     dt_id:str
-    dt_type: str   
-    
+    dt_type: str 
+    dt_location:str
+    dt_active_status:bool
+    dt_capability:str  
+    class Config:
+        orm_mode = True
+
+class Update_DigitalTwinObject(BaseModel):
+    dt_type: str 
+    dt_location:str
+    dt_active_status:bool
+    dt_capability:str  
+    class Config:
+        orm_mode = True
+
 #Smart_Room
 class Room_Object(BaseModel):
     room_id: str

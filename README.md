@@ -6,6 +6,9 @@ The smart room set up established with zigbee2mqtt which acts as a gateway that 
 
 The air quality data such as co2, humidity, and tempertaure is obtained with the scd-30 sensor for analysing the airquality and creating awareness with led notifications in case of higher co2 values in rooms and operate the ventilator with the smart room set up.
 
+This version of API is deployed into NAS and can be accessed only from the institute network and the url is 
+https://airquality.se.jku.at/smartroomairquality-test/docs/
+
 #### API
 
 The digital twin represents the api that is created for performing the CRUD operations for the smart room devices based on the airquality.
@@ -32,17 +35,17 @@ If the build is successful, you can see the services running on the ports as sho
 
 'http://localhost:8002/docs'.
 
-| services                        | port |
-| ------------------------------- | ---- |
-| fast_api (smartroom_airquality) | 8002 |
-| grafana                         | 3001 |
-| pgAdmin                         | 5055 |
+| services                            | port |
+| ----------------------------------- | ---- |
+| fast_api (smartroom_airquality_api) | 8000 |
+| grafana                             | 3000 |
+| pgAdmin                             | 5051 |
 
 #### Verifying the services:
 
 ##### PgAdmin- Set up the credentials:
 
-Navigate to the browser url "http://localhost:5055", the pgAdmin interface will be visible and you can login into the pgAdmin with the following email id (pgadmin4@pgadmin.org) and password(admin).
+Navigate to the browser url "http://localhost:5051", the pgAdmin interface will be visible and you can login into the pgAdmin with the following email id (pgadmin4@pgadmin.org) and password(admin).
 
 ![pgadmin_login](./images/pgadmin_login.png)
 
@@ -60,7 +63,7 @@ Now the tables will be created automatically based on the [database schema](http
 
 Now we can use the fast API requests to perform CRUD operations on the created tables.
 
-Navigate to the browser and check if the API is up and running from the port (8002) from localhost server.
+Navigate to the browser and check if the API is up and running from the port (8000) from localhost server.
 
 The screenshots of the API are as follows :
 
@@ -98,7 +101,7 @@ Verify if the data entry is present in the airqualityproperties table as shown i
 
 **Login**:
 
-Navigate to the browser url "http://localhost:3001", the grafana interface will be visible and you can login with the default username and password as admin. Then change the passwod accordingly.
+Navigate to the browser url "http://localhost:3000", the grafana interface will be visible and you can login with the default username and password as admin. Then change the passwod accordingly.
 
 ![Grafana_Credentials1](./images/grafanalogin.png)
 
